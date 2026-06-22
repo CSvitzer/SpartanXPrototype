@@ -1,0 +1,17 @@
+{
+  "name": "Spartan X",
+  "short_name": "Spartan X",
+  "description": "A private, stoic proof system for self-command.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08090A",
+  "theme_color": "#08090A",
+  "icons": [
+    { "src": "./icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" },
+    { "src": "./icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "./icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "./icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

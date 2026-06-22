@@ -1,0 +1,23 @@
+{
+  "name": "spartanx-e2e",
+  "private": true,
+  "description": "End-to-end Playwright regression test for the Spartan X prototype (kept isolated so the app root stays dependency-free).",
+  "scripts": {
+    "test": "node deep-playthrough.js",
+    "qa": "node qa-headless.js",
+    "coverage": "node full-coverage.js",
+    "progression": "node progression.js",
+    "fuzz": "node fuzz.js",
+    "clockfuzz": "node clock-fuzz.js",
+    "oracle": "node oracle.js",
+    "chaos": "node storage-chaos.js",
+    "a11y": "node a11y.js",
+    "cross": "node cross-engine.js",
+    "icons": "node gen-icons.js",
+    "all": "node run-all.js"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "playwright": "^1.61.0"
+  }
+}

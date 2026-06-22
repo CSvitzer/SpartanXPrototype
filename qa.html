@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Spartan X QA</title>
+    <link rel="stylesheet" href="./qa.css">
+  </head>
+  <body>
+    <main class="qa-shell">
+      <section class="qa-panel">
+        <div>
+          <p class="kicker">Spartan X QA</p>
+          <h1>Prototype coverage runner</h1>
+          <p class="muted">Runs the core app in an iframe and verifies the complete prototype flows.</p>
+        </div>
+        <div class="actions">
+          <button id="runAll">Run all tests</button>
+          <button id="resetOnly">Reset app state</button>
+        </div>
+        <ol id="results" class="results"></ol>
+      </section>
+      <section class="qa-app">
+        <iframe id="appFrame" title="Spartan X prototype under test"></iframe>
+      </section>
+    </main>
+    <script src="./qa.js"></script>
+  </body>
+</html>
