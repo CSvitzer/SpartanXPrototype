@@ -45,6 +45,7 @@ const tests = [
   ["No re-entry when recently active", testNoReentryWhenRecent],
   ["Reflection-due reminder on Today", testReflectionDueReminder],
   ["Just-in-time onboarding: proof in, safety+claim deferred", testJustInTimeOnboarding],
+  ["Callsign sets identity and tags check-ins", testCallsign],
   ["Continue Standard assigns next practice", testContinueStandardLoop],
   ["Proof-logged offers Continue Standard when qualified", testProofLoggedContinueCta],
   ["Elevation progress shown on Standard", testElevationProgressShown],
@@ -308,7 +309,7 @@ async function testFullPrototypeModules() {
   await fillByPlaceholder("Status, blocker, next action", "Practice closed. Delay. Start before phone.");
   await clickAction("submit-circle-checkin");
   let state = getState();
-  assert(state.modules.circle.checkins[0].name === "Test User", "Expected Circle check-in from profile.");
+  assert(state.modules.circle.checkins[0].name === "Tester", "Expected Circle check-in tagged with callsign.");
   assert(state.modules.circle.latestCheckin === "", "Expected Circle check-in input to clear.");
 
   await clickAction("set-module", { value: "connection", attr: "data-module" });
@@ -861,6 +862,22 @@ async function testOldMaxRecorded() {
   const state = getState();
   assert(state.standards.body === "Stabilizing", "Body should elevate to Stabilizing.");
   assert(state.standardProgress.body.oldMax === "Tested", "oldMax must record the pre-elevation level.");
+}
+
+async function testCallsign() {
+  // Optional identity (for future community challenges): editable in System, used to tag check-ins.
+  await loadStateForToday({ tab: "system", profile: { callsign: "" }, recruitQualified: true });
+  assert(doc().querySelector("#callsignSetting"), "System must offer a callsign field.");
+  setInput("callsignSetting", "Operator-7");
+  assert(getState().profile.callsign === "Operator-7", "Callsign must persist from System.");
+  await loadStateForToday({
+    recruitQualified: true, tab: "modules", profile: { callsign: "Operator-7" },
+    modules: { active: "circle", circle: { latestCheckin: "Practice closed. Delay. Start before phone." } },
+  });
+  await clickAction("set-tab", { value: "modules", attr: "data-tab" });
+  await clickAction("set-module", { value: "circle", attr: "data-module" });
+  await clickAction("submit-circle-checkin");
+  assert(getState().modules.circle.checkins[0].name === "Operator-7", "Check-in must be tagged with the callsign.");
 }
 
 async function testJustInTimeOnboarding() {

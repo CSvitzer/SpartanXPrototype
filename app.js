@@ -207,6 +207,7 @@ const DEFAULT_STATE = {
   claim: "",
   safetyFlags: [],
   safetyChecked: false,
+  callsignPromptDismissed: false,
   status: "Visitor",
   onboardingComplete: false,
   recruitQualified: false,
@@ -1118,6 +1119,22 @@ function renderClaimCard() {
   `;
 }
 
+// Deferred onboarding step 3 (optional): a callsign for identity now and for future community
+// challenges (Phase B). One-time prompt; also always editable in System. Not a gate.
+function renderCallsignCard() {
+  return `
+    <div class="panel steel">
+      <p class="kicker">Optional — for future challenges</p>
+      <h2>Choose a callsign.</h2>
+      <p class="muted small">A name to mark your proof. Used now for your check-ins, and reserved for community challenges &amp; leaderboards when they arrive. You can change or set it later in System.</p>
+      <div class="field">
+        <input id="callsignPrompt" data-input="profile" data-key="callsign" value="${escapeAttr(state.profile.callsign)}" placeholder="e.g. Operator-7" maxlength="24">
+      </div>
+      <div class="actions"><button class="btn primary" data-action="confirm-callsign">Done</button></div>
+    </div>
+  `;
+}
+
 function renderTodayTab() {
   const readiness = computeReadiness(state.readiness);
   const reflectionPending = ["completed", "scaled", "failed", "pain"].includes(state.mission.status);
@@ -1134,6 +1151,7 @@ function renderTodayTab() {
       ` : ""}
       ${!state.safetyChecked ? renderSafetyCard() : ""}
       ${state.safetyChecked && !state.claim ? renderClaimCard() : ""}
+      ${state.safetyChecked && !state.profile.callsign && !state.callsignPromptDismissed ? renderCallsignCard() : ""}
       <div class="dashboard">
         <div class="stack">
           <div class="view-header">
@@ -1564,6 +1582,14 @@ function renderSystemTab() {
       </div>
       <div class="dashboard">
         <div class="stack">
+          <div class="panel">
+            <h2>Profile</h2>
+            <div class="field">
+              <label for="callsignSetting">Callsign</label>
+              <input id="callsignSetting" data-input="profile" data-key="callsign" value="${escapeAttr(state.profile.callsign)}" placeholder="e.g. Operator-7" maxlength="24">
+            </div>
+            <p class="muted small">Local to this device. Reserved for community challenges &amp; leaderboards when they arrive.</p>
+          </div>
           <div class="panel">
             <h2>Privacy</h2>
             <label class="check-row">
@@ -2363,6 +2389,7 @@ document.addEventListener("click", event => {
   if (action === "toggle-safety") toggleArray(state.safetyFlags, control.dataset.flag);
   if (action === "finish-onboarding") finishOnboarding();
   if (action === "confirm-safety-check") confirmSafetyCheck();
+  if (action === "confirm-callsign") state.callsignPromptDismissed = true;
   if (action === "set-tab") state.tab = control.dataset.tab;
   if (action === "set-module") state.modules.active = control.dataset.module;
   if (action === "set-guide-focus") {
@@ -2550,7 +2577,7 @@ function submitCircleCheckin() {
   if (!text) return;
   const parts = text.split(/[.;\n]/).map(part => part.trim()).filter(Boolean);
   circle.checkins.unshift({
-    name: state.profile.displayName.trim() || "You",
+    name: (state.profile.callsign || "").trim() || (state.profile.displayName || "").trim() || "You",
     status: "Check-in logged",
     blocker: parts[1] || "Named",
     next: parts[2] || parts[0] || "Next clean action",

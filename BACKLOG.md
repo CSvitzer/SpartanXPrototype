@@ -74,6 +74,30 @@ near alpha · **P2** = later / polish / production (Phase B).
 25. **Region-verified crisis-resource directory** (productionizes P0 #3).
 26. Production privacy/consent, data export & deletion guarantees; push notifications.
 
+### Phase B — Community, challenges & leaderboards (requires a backend; cannot be done client-only)
+Vision: compete with others, run challenges. Identity groundwork is already in place — the optional
+**callsign** (local now) becomes the seed for a real account at signup.
+27. **Real account = upgrade the local callsign.** At first sync, claim the callsign as a handle and
+    bind it to a real auth account (#21). The local-only prototype deliberately has NO email/password
+    (that would be fake) — the account screen returns only when there is a server to authenticate
+    against. Migrate existing local data up via the existing export/import bridge.
+28. **Sync the proof model (#22).** The proof ledger, standards, Moving-Standard levels, and
+    qualification ladder are already structured, deterministic, and tamper-evident (B4 hash chain) —
+    ship them to the server as the canonical record. The hash chain doubles as anti-cheat for
+    submitted proofs (server re-verifies; client-only is evident-not-secure, server makes it real).
+29. **Leaderboards.** Rank by the existing honest metrics (active days, reflection quality, tier
+    reached, under-review rate) — NOT vanity. Per-domain and per-cohort boards. Privacy-first opt-in.
+30. **Challenges.** Server-defined, time-boxed challenges (e.g. "7-day no-mood streak", "RECOVER
+    obeyed 3×") evaluated against the same rule engine the prototype already runs, so scoring is
+    consistent client/server. Local solo challenges (#below) are the offline subset.
+31. **Anti-gaming for competition.** Server-side proof verification, rate limits, readiness/ safety
+    interlocks preserved (a flagged user is never pushed to compete), and the safety gate stays
+    non-bypassable. Reuse `checkInvariants` + `verifyLedger` server-side.
+
+> Local subset doable without backend (if wanted before Phase B): personal/time-boxed solo
+> challenges + shareable challenge *definitions* via export/import codes. "Compare against others"
+> is the part that strictly needs the server.
+
 ---
 
 ## Suggested execution order

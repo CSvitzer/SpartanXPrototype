@@ -2,7 +2,7 @@ const playwright = require("playwright");
 const ENGINE = process.env.SX_BROWSER || "chromium";
 const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
-const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check".split(" ");
+const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign".split(" ");
 const clicked = new Set();
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
@@ -91,8 +91,11 @@ const QUALIFIED = {
     await ca("toggle-safety", { attr: "data-flag", value: "pain" });
     await ca("confirm-safety-check");
     await ca("select-claim", { attr: "data-claim", value: "I am disciplined." });
+    await page.fill("#callsignPrompt", "Operator-7"); // optional callsign (deferred identity)
+    await ca("confirm-callsign");
     await ca("begin-main-mission");
-    ok("S1 onboarding traversal", (await gs()).onboardingComplete === true && (await gs()).safetyChecked === true);
+    const s1 = await gs();
+    ok("S1 onboarding traversal", s1.onboardingComplete === true && s1.safetyChecked === true && s1.profile.callsign === "Operator-7");
   } catch (e) { ok("S1 onboarding", false, e.message); }
 
   // S1c: first-order minimum-complete branch
