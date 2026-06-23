@@ -61,11 +61,13 @@ near alpha · **P2** = later / polish / production (Phase B).
   findahelpline; 988 marked US-only).
 - ✅ Progress invisible (Standard tab only) → **renderTodayProgress** shows weakest-domain elevation +
   next qualification tier met/total on Today.
-**Owner decisions still open (not bugs):**
-- Brand: "Prove that you belong" + rank tiers — Stoic lens calls it external-validation drift; Spartan
-  lens calls it healthy earned-status. Owner's call.
-- Pain severe→mild instant downgrade — trainer wants a cooldown; owner previously chose soft-confirm
-  (P2 #13). Reaffirm or revisit.
+**Owner decisions — RESOLVED (went with recommendations, gate-verified):**
+- ✅ Brand: kept the Spartan rank ladder; reframed only the external-validation drift — tagline
+  "Prove that you belong" → "Prove it to yourself" (internal locus). Stoic gate: concern CLOSED;
+  Spartan gate: ethos INTACT (judge shifts system→self).
+- ✅ Pain severe→down: kept SOFT (no hard latch, per prior decision) but added an explicit
+  injury-masking warning + made "Keep severe" the primary/default button. Trainer gate: addressed;
+  residual is honest-report misuse by design. (Supersedes P2 #13.)
 **Deferred enhancements from review (added to P2 below):** recovery-as-skill credit + recovery
 modules; Foundation graduation moment; pre-mission friction prompt; broaden overtraining detection
 (volume/frequency, `activeDays` unused); PRESS stability (require 2 good polls before RECOVER→PRESS);
@@ -74,8 +76,8 @@ modules; Foundation graduation moment; pre-mission friction prompt; broaden over
 ## P2 — Later / polish / product decisions / production (Phase B)
 
 ### Product / UX polish
-13. **RECOVER latch decision (deferred #2).** Decide: keep soft pain-downgrade confirmation, or add
-    a hard latch requiring a logged recovery before leaving a protected state.
+13. ✅ **RESOLVED — RECOVER/pain latch decision.** Kept soft (no hard latch); strengthened severe
+    downgrade with an injury warning + safe-default button. See the expert sanity-check section above.
 14. **Reflection ergonomics.** Make stepper chips tappable to jump/review; consider a "quick
     reflection" for low-friction days (daily 6-step flow may fatigue).
 15. **Collapse locked qualification tiers** in the Standard ladder (long on mobile).

@@ -653,7 +653,7 @@ function renderRail() {
       ` : `
         <div class="rail-copy">
           <p class="kicker">Stoic Standard Minimalism</p>
-          <h1>Prove that you belong.</h1>
+          <h1>Prove it to yourself.</h1>
           <p>Claims do not qualify. Proof does. The system measures response, friction, reflection quality, and whether the standard can move without reckless pressure.</p>
         </div>
       `}
@@ -696,7 +696,7 @@ function renderSplash() {
           <span class="mark" aria-hidden="true"></span>
           <strong>Spartan X</strong>
         </div>
-        <p class="kicker">Prove that you belong.</p>
+        <p class="kicker">Prove it to yourself.</p>
       </div>
     </section>
   `;
@@ -2079,15 +2079,22 @@ function renderModal() {
 function renderPainDowngradeModal() {
   const current = state.readiness.pain;
   const next = state.pendingPain;
+  // Soft (no hard latch, per owner decision). For SEVERE specifically, add an explicit injury
+  // warning and make the SAFE option the primary button, so a reflexive tap protects, not downgrades.
+  const severe = current === "severe";
   return `
     <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pain-title">
       <div class="modal-panel">
         <p class="kicker">Confirm Pain Change</p>
         <h2 id="pain-title">Lowering a protected signal.</h2>
         <p class="muted">You are changing reported pain from ${escapeHtml(current)} to ${escapeHtml(next || "")}. Recovery is part of the standard, not weakness. Confirm only if the pain has truly eased.</p>
+        ${severe ? `<p class="muted small">Under-reporting pain can hide an injury. If there is any doubt, keep it higher and take a recovery-safe practice.</p>` : ""}
         <div class="actions">
-          <button class="btn primary" data-action="confirm-pain">Confirm Change</button>
-          <button class="btn ghost" data-action="close-modal">Keep ${escapeHtml(current)}</button>
+          ${severe
+            ? `<button class="btn primary" data-action="close-modal">Keep severe</button>
+               <button class="btn ghost" data-action="confirm-pain">Lower it anyway</button>`
+            : `<button class="btn primary" data-action="confirm-pain">Confirm Change</button>
+               <button class="btn ghost" data-action="close-modal">Keep ${escapeHtml(current)}</button>`}
         </div>
       </div>
     </div>

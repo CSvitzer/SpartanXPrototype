@@ -64,6 +64,7 @@ const tests = [
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
   ["Legacy unsigned proofs are not flagged", testLedgerLegacyNotFlagged],
+  ["Severe pain downgrade warns + safe-defaults", testSeverePainGuard],
   ["Injury flag forces RECOVER (activity-restricting)", testInjuryFlagForcesRecover],
   ["Safety flags editable + clearable in System", testSafetyPanelManage],
   ["Today shows elevation + qualification progress", testTodayProgressShown],
@@ -752,6 +753,18 @@ async function testLedgerLegacyNotFlagged() {
   await loadStateForToday({ proofLedger: [proof({}), proof({ domain: "mind" })] });
   assert(win().verifyLedger(getState().proofLedger) === true, "Legacy unsigned proofs must not be flagged.");
   assert(!doc().body.innerText.toLowerCase().includes("integrity check failed"), "No tamper banner for a legacy ledger.");
+}
+
+async function testSeverePainGuard() {
+  // Soft guard (no hard latch): severe->lower must warn about injury masking and make the SAFE
+  // option (keep severe) the primary button so a reflexive tap protects.
+  await loadStateForToday({ readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 } });
+  await clickAction("set-pain", { value: "none", attr: "data-pain" });
+  assert(getState().modal === "painDowngrade", "Severe downgrade must ask for confirmation.");
+  assertText("hide an injury");
+  assert(doc().querySelector('.modal-panel .btn.primary[data-action="close-modal"]'), "Keep-severe must be the emphasized (primary) option.");
+  assert(doc().querySelector('.btn.ghost[data-action="confirm-pain"]'), "Lowering severe must be the secondary action.");
+  assert(getState().readiness.pain === "severe", "Pain must not change before confirmation.");
 }
 
 async function testInjuryFlagForcesRecover() {
