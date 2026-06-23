@@ -55,6 +55,15 @@ const FRICTION_TYPES = [
 const TABS = ["today", "mission", "debrief", "proof", "standard"];
 const STANDARD_LEVELS = ["Untested", "Tested", "Stabilizing", "Baseline", "Elevated"];
 const TRAINABLE_DOMAINS = ["body", "mind", "will", "execution"];
+// Shared by the one-time safety card AND the System safety panel so the two never drift.
+const SAFETY_OPTIONS = [
+  ["injury", "Currently injured"],
+  ["pain", "Pain worsens with movement"],
+  ["medical", "Told not to exercise"],
+  ["crisis", "Currently in crisis"],
+  ["self-punishment", "Training as punishment"],
+  ["restriction", "Extreme food restriction"],
+];
 const TAB_LABELS = {
   today: "Today",
   mission: "Practice",
@@ -1081,21 +1090,13 @@ function disclosure(summary, body, open = false) {
 function renderSafetyCard() {
   const flags = state.safetyFlags;
   const critical = hasCriticalSafetyFlag();
-  const options = [
-    ["injury", "Currently injured"],
-    ["pain", "Pain worsens with movement"],
-    ["medical", "Told not to exercise"],
-    ["crisis", "Currently in crisis"],
-    ["self-punishment", "Training as punishment"],
-    ["restriction", "Extreme food restriction"],
-  ];
   return `
     <div class="panel ${critical ? "danger" : flags.length ? "warning" : "steel"}">
       <p class="kicker">Quick safety check</p>
       <h2>Before your first practice.</h2>
-      <p class="muted small">Tap anything true for you right now — or none. This keeps the practice safe. Spartan X is not medical care, therapy, or emergency support.</p>
+      <p class="muted small">Tap anything true for you right now — or none. This keeps the practice safe. Spartan X is not medical care, therapy, or emergency support. You can update these anytime in System.</p>
       <div class="risk-grid">
-        ${options.map(([flag, label]) => `<button data-action="toggle-safety" data-flag="${flag}" aria-pressed="${flags.includes(flag)}">${label}</button>`).join("")}
+        ${SAFETY_OPTIONS.map(([flag, label]) => `<button data-action="toggle-safety" data-flag="${flag}" aria-pressed="${flags.includes(flag)}">${label}</button>`).join("")}
       </div>
       ${flags.length ? `<p class="muted small">${escapeHtml(safetyMessage(flags))}</p>` : ""}
       ${critical ? renderCrisisResources() : ""}
@@ -1131,6 +1132,26 @@ function renderCallsignCard() {
         <input id="callsignPrompt" data-input="profile" data-key="callsign" value="${escapeAttr(state.profile.callsign)}" placeholder="e.g. Operator-7" maxlength="24">
       </div>
       <div class="actions"><button class="btn primary" data-action="confirm-callsign">Done</button></div>
+    </div>
+  `;
+}
+
+// Surface progress on Today (not only the Standard tab): weakest-domain elevation + the next
+// qualification tier's met/total. Makes the loop visible so users know they're close.
+function renderTodayProgress() {
+  const domain = weakestDomain();
+  const tiers = computeQualification();
+  const current = tiers.find(t => t.status === "in_progress") || tiers.find(t => t.status === "available");
+  const met = current ? current.requirements.filter(([, done]) => done).length : 0;
+  const total = current ? current.requirements.length : 0;
+  const left = total - met;
+  return `
+    <div class="panel">
+      <h2>Progress</h2>
+      <p class="muted small">${escapeHtml(domain)}: ${escapeHtml(standardProgressNote(domain))}</p>
+      ${current
+        ? `<p class="muted small">${escapeHtml(current.name)}: ${met}/${total} criteria${left > 0 ? ` — ${left} to go` : " — ready"}.</p>`
+        : `<p class="muted small">All qualification tiers reached.</p>`}
     </div>
   `;
 }
@@ -1191,6 +1212,7 @@ function renderTodayTab() {
             <h2>Next Required Action</h2>
             <p>${readiness.command === "RECOVER" ? "Complete a recovery-safe practice. Physical intensity disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
           </div>
+          ${state.safetyChecked ? renderTodayProgress() : ""}
           ${disclosure("Foundation Path", renderFoundationProgressPanel())}
         </div>
         <aside class="stack">
@@ -1589,6 +1611,15 @@ function renderSystemTab() {
               <input id="callsignSetting" data-input="profile" data-key="callsign" value="${escapeAttr(state.profile.callsign)}" placeholder="e.g. Operator-7" maxlength="24">
             </div>
             <p class="muted small">Local to this device. Reserved for community challenges &amp; leaderboards when they arrive.</p>
+          </div>
+          <div class="panel ${hasCriticalSafetyFlag() ? "danger" : state.safetyFlags.length ? "warning" : ""}">
+            <h2>Safety</h2>
+            <p class="muted small">Update these whenever your situation changes — flag a new injury, or clear a flag once you've recovered. While any is active, practice stays in recovery-safe mode.</p>
+            <div class="risk-grid">
+              ${SAFETY_OPTIONS.map(([flag, label]) => `<button data-action="toggle-safety" data-flag="${flag}" aria-pressed="${state.safetyFlags.includes(flag)}">${label}</button>`).join("")}
+            </div>
+            ${state.safetyFlags.length ? `<p class="muted small">${escapeHtml(safetyMessage(state.safetyFlags))}</p>` : ""}
+            ${hasCriticalSafetyFlag() ? renderCrisisResources() : ""}
           </div>
           <div class="panel">
             <h2>Privacy</h2>
@@ -2067,8 +2098,8 @@ function renderCrisisResources() {
   return `
     <div class="panel danger">
       <h2>Immediate support</h2>
-      <p>Spartan X is not crisis care. If you are in immediate danger, contact local emergency services now: 112 (EU), 999 (UK), or 911 (US).</p>
-      <p class="muted">For free, confidential support, find a crisis line in your country at findahelpline.com. In the US, call or text 988. Reaching out is part of the standard, not a failure of it.</p>
+      <p>Spartan X is not crisis care. If you are in immediate danger, call your local emergency number now — for example 112 (EU / Sweden), 999 (UK), or 911 (US).</p>
+      <p class="muted">For free, confidential support, find a crisis line in your own country at findahelpline.com. (US only: call or text 988.) Reaching out is part of the standard, not a failure of it.</p>
     </div>
   `;
 }
@@ -3481,16 +3512,19 @@ function computeReadiness(r) {
   const sorenessFlag = r.soreness >= 4;
   const lowEnergy = r.energy <= 2;
   const critical = hasCriticalSafetyFlag();
+  const restricting = hasActivityRestrictingFlag();
   const overtraining = hasOvertrainingRisk();
 
-  if (r.pain === "severe" || critical || overtraining || (r.sleep === 1 && r.energy === 1 && r.soreness >= 4)) {
+  if (r.pain === "severe" || critical || restricting || overtraining || (r.sleep === 1 && r.energy === 1 && r.soreness >= 4)) {
     return {
       command: "RECOVER",
       reason: critical
         ? "Safety flag active. Hard challenge prompts are disabled."
-        : overtraining
-          ? "Overtraining risk detected across recent readiness checks. Recovery is the standard."
-        : "Severe load risk detected. Physical intensity disabled.",
+        : restricting
+          ? "You flagged injury, pain, or a medical restriction. Only recovery-safe practice is available."
+          : overtraining
+            ? "Overtraining risk detected across recent readiness checks. Recovery is the standard."
+            : "Severe load risk detected. Physical intensity disabled.",
     };
   }
 
@@ -3933,6 +3967,13 @@ function countFriction() {
 function hasCriticalSafetyFlag() {
   return Array.isArray(state.safetyFlags)
     && state.safetyFlags.some(flag => ["crisis", "self-punishment", "restriction"].includes(flag));
+}
+
+// Any safety flag (injury/pain/medical too — not just the critical mental-health ones) must restrict
+// activity to recovery-safe practice. Previously injury/medical/pain were collected but gated nothing.
+function hasActivityRestrictingFlag() {
+  return Array.isArray(state.safetyFlags)
+    && state.safetyFlags.some(flag => ["injury", "pain", "medical", "crisis", "self-punishment", "restriction"].includes(flag));
 }
 
 function recordReadinessSnapshot() {

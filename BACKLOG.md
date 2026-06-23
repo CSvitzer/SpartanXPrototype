@@ -50,6 +50,27 @@ near alpha · **P2** = later / polish / production (Phase B).
 12. **Real-device smoke test.** Manually verify install + offline on iOS Safari and Android Chrome
     (only headless Chromium tested so far).
 
+## Expert sanity-check (2026-06-23) — 6 lenses (UI, Stoic, Spartan mentality, trainer, top-1%, fitness-product)
+**Verdicts:** UI PASS · Stoic PASS · Spartan PASS · Trainer CONCERNS · Top-1% CONCERNS · Product PASS(alpha).
+**Fixed same day (verified in code + tests):**
+- ✅ Injury/medical/pain safety flags were INERT (gated nothing) → now `hasActivityRestrictingFlag()`
+  forces RECOVER for any flag. (`computeReadiness`)
+- ✅ Safety flags couldn't be changed after the one-time card (permanent lock, no injury reporting) →
+  added a **System → Safety** panel (set/clear anytime) + shared `SAFETY_OPTIONS`.
+- ✅ Crisis resources were US-centric (988) → locale-honest copy (local emergency number + global
+  findahelpline; 988 marked US-only).
+- ✅ Progress invisible (Standard tab only) → **renderTodayProgress** shows weakest-domain elevation +
+  next qualification tier met/total on Today.
+**Owner decisions still open (not bugs):**
+- Brand: "Prove that you belong" + rank tiers — Stoic lens calls it external-validation drift; Spartan
+  lens calls it healthy earned-status. Owner's call.
+- Pain severe→mild instant downgrade — trainer wants a cooldown; owner previously chose soft-confirm
+  (P2 #13). Reaffirm or revisit.
+**Deferred enhancements from review (added to P2 below):** recovery-as-skill credit + recovery
+modules; Foundation graduation moment; pre-mission friction prompt; broaden overtraining detection
+(volume/frequency, `activeDays` unused); PRESS stability (require 2 good polls before RECOVER→PRESS);
+375px tab-label sizing; off-device push (retention).
+
 ## P2 — Later / polish / product decisions / production (Phase B)
 
 ### Product / UX polish

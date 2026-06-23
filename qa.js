@@ -64,6 +64,9 @@ const tests = [
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
   ["Legacy unsigned proofs are not flagged", testLedgerLegacyNotFlagged],
+  ["Injury flag forces RECOVER (activity-restricting)", testInjuryFlagForcesRecover],
+  ["Safety flags editable + clearable in System", testSafetyPanelManage],
+  ["Today shows elevation + qualification progress", testTodayProgressShown],
   ["Safety scan catches broadened phrasings", testSafetyScanBroadened],
   ["Multi-tab storage sync adopts external state", testMultiTabSync],
   ["Local report computes from own data", testLocalReport],
@@ -749,6 +752,34 @@ async function testLedgerLegacyNotFlagged() {
   await loadStateForToday({ proofLedger: [proof({}), proof({ domain: "mind" })] });
   assert(win().verifyLedger(getState().proofLedger) === true, "Legacy unsigned proofs must not be flagged.");
   assert(!doc().body.innerText.toLowerCase().includes("integrity check failed"), "No tamper banner for a legacy ledger.");
+}
+
+async function testInjuryFlagForcesRecover() {
+  // Verified gap fix: injury/medical/pain flags must restrict activity to RECOVER (were inert before).
+  const fit = { sleep: 5, energy: 5, soreness: 1, pain: "none", stress: 1, emotional: 1, motivation: 3 };
+  await loadStateForToday({ readiness: fit, safetyFlags: [] });
+  assert(win().computeReadiness(getState().readiness).command === "PRESS", "Control: fit + no flag should be PRESS.");
+  await loadStateForToday({ readiness: fit, safetyFlags: ["injury"] });
+  assert(win().computeReadiness(getState().readiness).command === "RECOVER", "Injury flag must force RECOVER even when fit.");
+  await loadStateForToday({ readiness: fit, safetyFlags: ["medical"] });
+  assert(win().computeReadiness(getState().readiness).command === "RECOVER", "Medical flag must force RECOVER.");
+}
+
+async function testSafetyPanelManage() {
+  // Verified gap fix: flags must be settable AND clearable after onboarding (no permanent lock).
+  await loadStateForToday({ tab: "system", safetyFlags: [] });
+  await clickAction("toggle-safety", { value: "injury", attr: "data-flag" });
+  assert(getState().safetyFlags.includes("injury"), "System must let a user set a flag later.");
+  await clickAction("toggle-safety", { value: "injury", attr: "data-flag" });
+  assert(!getState().safetyFlags.includes("injury"), "System must let a user clear a recovered flag.");
+}
+
+async function testTodayProgressShown() {
+  // High-leverage: elevation + qualification progress visible on Today, not only the Standard tab.
+  await loadStateForToday({ tab: "today" });
+  assertText("Progress");
+  assertText("reflected proofs to elevate");
+  assertText("criteria");
 }
 
 async function testSafetyScanBroadened() {
