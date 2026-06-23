@@ -49,14 +49,9 @@ const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
   await ca("start-order");
   await ca("complete-first-order");
   await ca("submit-first-report");
-  await ca("continue-claim");
+  await ca("finish-onboarding");                 // first proof -> into the app
+  await ca("confirm-safety-check");              // one-time deferred safety check on Today
   await ca("select-claim", { attr: "data-claim", value: "I do not have enough time." });
-  await ca("log-claim");
-  await page.fill("#email", "r@e.com"); await page.fill("#password", "pw"); await page.fill("#displayName", "Reader"); await page.fill("#callsign", "R");
-  await page.check('[data-key="ageConfirmed"]'); await page.check('[data-key="consentConfirmed"]'); await page.check('[data-key="consentChallenge"]');
-  await ca("continue-account");
-  await ca("enter-foundation");
-  await ca("start-foundation");
 
   // --- 7-day Foundation, one distinct day each ---
   for (let d = 1; d <= 7; d++) {

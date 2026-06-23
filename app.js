@@ -204,8 +204,9 @@ const DEFAULT_STATE = {
     frictionLevel: "medium",
     resisted: ["Delay"],
   },
-  claim: CLAIMS[0],
+  claim: "",
   safetyFlags: [],
+  safetyChecked: false,
   status: "Visitor",
   onboardingComplete: false,
   recruitQualified: false,
@@ -709,6 +710,7 @@ function renderAccess() {
       </div>
       <div class="panel steel">
         <p><strong>First practice:</strong> choose one proof and complete it now. No account. No planning ritual. Response first.</p>
+        <p class="muted small">Everything stays on this device — nothing is sent anywhere.</p>
       </div>
       <div class="actions">
         <button class="btn primary" data-action="begin-selection">Begin Assessment</button>
@@ -862,7 +864,7 @@ function renderFirstResult() {
         <p>${completed ? "You responded to the standard. You have not proven discipline. Foundation available." : paused ? "Two failed first practices recorded. Re-entry is available anytime. No punishment. No false progress." : "This is not rejection. Retry now or exit assessment."}</p>
       </div>
       <div class="actions">
-        ${completed ? `<button class="btn primary" data-action="continue-claim">Continue</button>` : paused ? `<button class="btn primary" data-action="retry-order">Re-enter Assessment</button>` : `<button class="btn primary" data-action="retry-order">Retry Practice</button>`}
+        ${completed ? `<button class="btn primary" data-action="finish-onboarding">Enter Spartan X</button>` : paused ? `<button class="btn primary" data-action="retry-order">Re-enter Assessment</button>` : `<button class="btn primary" data-action="retry-order">Retry Practice</button>`}
         <button class="btn ghost" data-action="reset">Exit Assessment</button>
       </div>
     </section>
@@ -1073,6 +1075,49 @@ function disclosure(summary, body, open = false) {
   return `<details class="disclosure"${open ? " open" : ""}><summary>${escapeHtml(summary)}</summary>${body}</details>`;
 }
 
+// Deferred onboarding step 1 (just-in-time): one-time safety calibration, shown on Today before the
+// first practice can start. Sets the same safetyFlags the engine + proof gate already understand.
+function renderSafetyCard() {
+  const flags = state.safetyFlags;
+  const critical = hasCriticalSafetyFlag();
+  const options = [
+    ["injury", "Currently injured"],
+    ["pain", "Pain worsens with movement"],
+    ["medical", "Told not to exercise"],
+    ["crisis", "Currently in crisis"],
+    ["self-punishment", "Training as punishment"],
+    ["restriction", "Extreme food restriction"],
+  ];
+  return `
+    <div class="panel ${critical ? "danger" : flags.length ? "warning" : "steel"}">
+      <p class="kicker">Quick safety check</p>
+      <h2>Before your first practice.</h2>
+      <p class="muted small">Tap anything true for you right now — or none. This keeps the practice safe. Spartan X is not medical care, therapy, or emergency support.</p>
+      <div class="risk-grid">
+        ${options.map(([flag, label]) => `<button data-action="toggle-safety" data-flag="${flag}" aria-pressed="${flags.includes(flag)}">${label}</button>`).join("")}
+      </div>
+      ${flags.length ? `<p class="muted small">${escapeHtml(safetyMessage(flags))}</p>` : ""}
+      ${critical ? renderCrisisResources() : ""}
+      <div class="actions"><button class="btn primary" data-action="confirm-safety-check">Save &amp; continue</button></div>
+    </div>
+  `;
+}
+
+// Deferred onboarding step 2 (just-in-time): optional claim to test, shown on Today after the safety
+// check until one is chosen. Not a gate — the user can practice without it.
+function renderClaimCard() {
+  return `
+    <div class="panel steel">
+      <p class="kicker">Optional — sharpen your proof</p>
+      <h2>Pick a claim to test.</h2>
+      <p class="muted small">Foundation collects evidence for or against one belief about yourself. Choose one to make the proof sharper — or skip and pick later.</p>
+      <div class="choice-grid">
+        ${CLAIMS.map(claim => `<button class="choice-card" data-action="select-claim" data-claim="${escapeAttr(claim)}" aria-pressed="${state.claim === claim}"><strong>${escapeHtml(claim)}</strong></button>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
 function renderTodayTab() {
   const readiness = computeReadiness(state.readiness);
   const reflectionPending = ["completed", "scaled", "failed", "pain"].includes(state.mission.status);
@@ -1087,6 +1132,8 @@ function renderTodayTab() {
           <div class="actions"><button class="btn primary" data-action="set-tab" data-tab="debrief">Complete Reflection</button></div>
         </div>
       ` : ""}
+      ${!state.safetyChecked ? renderSafetyCard() : ""}
+      ${state.safetyChecked && !state.claim ? renderClaimCard() : ""}
       <div class="dashboard">
         <div class="stack">
           <div class="view-header">
@@ -1099,7 +1146,7 @@ function renderTodayTab() {
           <div class="metric-grid">
             <div class="metric"><span>Status</span><strong>${escapeHtml(state.status)}</strong></div>
             <div class="metric"><span>Today Standard</span><strong>Day ${state.mission.day}: ${escapeHtml(state.mission.name)}</strong></div>
-            <div class="metric"><span>Active Claim</span><strong>${escapeHtml(state.claim)}</strong></div>
+            <div class="metric"><span>Active Claim</span><strong>${state.claim ? escapeHtml(state.claim) : "Not set"}</strong></div>
           <div class="metric"><span>Reflection Due</span><strong>${escapeHtml(state.mission.deadline)}</strong></div>
             <div class="metric"><span>Active Days</span><strong>${(state.activeDays || []).length}</strong></div>
           </div>
@@ -1113,11 +1160,13 @@ function renderTodayTab() {
             <p>${escapeHtml(readiness.reason)}</p>
           </div>
           <div class="actions">
-            ${state.recruitQualified
-              ? (state.mission.status === "active"
-                  ? `<button class="btn primary" data-action="set-tab" data-tab="mission">Open Practice</button>`
-                  : `<button class="btn primary" data-action="continue-standard">Continue Standard</button>`)
-              : `<button class="btn primary" data-action="begin-main-mission">Begin Practice</button>`}
+            ${state.safetyChecked
+              ? (state.recruitQualified
+                  ? (state.mission.status === "active"
+                      ? `<button class="btn primary" data-action="set-tab" data-tab="mission">Open Practice</button>`
+                      : `<button class="btn primary" data-action="continue-standard">Continue Standard</button>`)
+                  : `<button class="btn primary" data-action="begin-main-mission">Begin Practice</button>`)
+              : `<span class="muted small">Complete the safety check above to begin your first practice.</span>`}
             <button class="btn steel" data-action="set-tab" data-tab="standard">View Standard</button>
           </div>
           <div class="panel">
@@ -1128,7 +1177,7 @@ function renderTodayTab() {
         </div>
         <aside class="stack">
           ${renderReadinessControls()}
-          ${disclosure("Active Claim", renderDeconstructionPanel())}
+          ${state.claim ? disclosure("Active Claim", renderDeconstructionPanel()) : ""}
           ${disclosure("Friction Map", renderFrictionMap())}
         </aside>
       </div>
@@ -2310,14 +2359,10 @@ document.addEventListener("click", event => {
   if (action === "toggle-report-friction") toggleArray(state.report.resisted, control.dataset.friction);
   if (action === "submit-first-report") submitFirstReport();
   if (action === "retry-order") state.view = "order-select";
-  if (action === "continue-claim") state.view = "claim";
   if (action === "select-claim") state.claim = control.dataset.claim;
-  if (action === "log-claim") state.view = "account";
-  if (action === "continue-account" && canContinueProfile()) state.view = "safety";
   if (action === "toggle-safety") toggleArray(state.safetyFlags, control.dataset.flag);
-  if (action === "enter-foundation") enterFoundationReview();
-  if (action === "back-safety") state.view = "safety";
-  if (action === "start-foundation") enterInduction();
+  if (action === "finish-onboarding") finishOnboarding();
+  if (action === "confirm-safety-check") confirmSafetyCheck();
   if (action === "set-tab") state.tab = control.dataset.tab;
   if (action === "set-module") state.modules.active = control.dataset.module;
   if (action === "set-guide-focus") {
@@ -2428,19 +2473,24 @@ function submitFirstReport() {
   state.view = "result";
 }
 
-function enterFoundationReview() {
-  state.view = "foundation";
-  state.foundation.currentDay = Math.max(1, state.foundation.currentDay || 1);
-  setPracticeForDay(state.foundation.currentDay);
-}
-
-function enterInduction() {
+// Just-in-time onboarding: the first proof drops the user straight into the app. The safety check
+// and claim selection are deferred to one-time Today cards (see renderSafetyCard/renderClaimCard),
+// so nothing blocks getting in. The account screen is dropped entirely (data is local-only).
+function finishOnboarding() {
   state.onboardingComplete = true;
-  state.status = hasCriticalSafetyFlag() ? "Protected Candidate" : "Foundation Candidate";
+  state.status = "Foundation Candidate";
   state.foundation.started = true;
+  state.foundation.currentDay = Math.max(1, state.foundation.currentDay || 1);
   state.tab = "today";
   setPracticeForDay(state.foundation.currentDay);
   updateStandardsFromReadiness();
+}
+
+// Confirms the deferred safety calibration (one-time). Keeps protected status if a critical flag
+// was set. Does not auto-start a practice — the user taps Begin Practice when ready.
+function confirmSafetyCheck() {
+  state.safetyChecked = true;
+  if (hasCriticalSafetyFlag()) state.status = "Protected Candidate";
 }
 
 function setPracticeForDay(dayNumber) {
@@ -3201,6 +3251,8 @@ function targetedPracticeForFriction(name, fallbackDay) {
 }
 
 function beginMission() {
+  // Safety check is a one-time gate before the first real practice (deferred from onboarding).
+  if (!state.safetyChecked) { state.tab = "today"; return; }
   state.mission.status = "active";
   state.tab = "mission";
 }

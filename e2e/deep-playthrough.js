@@ -51,23 +51,19 @@ function ok(n, c, d) { R.push({ n, c: !!c, d: d || "" }); }
     await ca("start-order");
     await ca("complete-first-order");
     await ca("submit-first-report");
-    await ca("continue-claim");
-    await ca("log-claim");
-    await fill("#email", "reader@example.com");
-    await fill("#password", "prototype-pass");
-    await fill("#displayName", "Alpha Reader");
-    await fill("#callsign", "Reader");
-    await page.check('[data-key="ageConfirmed"]');
-    await page.check('[data-key="consentConfirmed"]');
-    await page.check('[data-key="consentChallenge"]');
-    await ca("continue-account");
+    await ca("finish-onboarding"); // first proof -> straight into the app
+    const inApp = await gs();
+    ok("onboarding complete after first proof", inApp && inApp.onboardingComplete === true && inApp.status === "Foundation Candidate");
+    ok("claim deferred (not set during onboarding)", inApp && inApp.claim === "");
+    ok("safety check deferred", inApp && inApp.safetyChecked === false);
+    // Just-in-time: one-time safety check on Today, then deferred claim card.
     await ca("toggle-safety", { attr: "data-flag", value: "injury" });
     await ca("toggle-safety", { attr: "data-flag", value: "injury" });
-    await ca("enter-foundation");
-    await ca("start-foundation");
+    await ca("confirm-safety-check");
+    await ca("select-claim", { attr: "data-claim", value: "I am disciplined." });
     const s = await gs();
-    ok("onboarding complete", s && s.onboardingComplete === true && s.status === "Foundation Candidate");
-    ok("claim captured", s && s.claim && s.claim.length > 0);
+    ok("safety check confirmed", s && s.safetyChecked === true);
+    ok("claim captured on Today", s && s.claim === "I am disciplined.");
   } catch (e) { ok("PHASE1 onboarding", false, e.message); }
 
   // PHASE 2: 7-day Foundation with edge flows
@@ -154,7 +150,7 @@ function ok(n, c, d) { R.push({ n, c: !!c, d: d || "" }); }
     await mod("circle");
     await fill('[data-input="module"][data-module="circle"][data-key="latestCheckin"]', "Practice closed. Delay. Start before phone.");
     await ca("submit-circle-checkin");
-    m.circle = (await gs()).modules.circle.checkins[0].name === "Alpha Reader";
+    m.circle = (await gs()).modules.circle.checkins[0].name === "You"; // name defaults to "You" (account step dropped)
     await mod("connection"); await ca("complete-connection");
     m.connection = (await gs()).modules.connection.completed.length > 0;
     await mod("principles"); await ca("select-principle", { attr: "data-principle", value: "proof" }); await ca("practice-principle");

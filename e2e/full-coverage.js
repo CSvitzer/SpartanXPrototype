@@ -2,7 +2,7 @@ const playwright = require("playwright");
 const ENGINE = process.env.SX_BROWSER || "chromium";
 const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
-const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline back-safety begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-account continue-claim continue-standard debrief-back debrief-next dismiss-reentry enter-foundation generate-guide go-access grant-integrated-proof load-sample-history log-claim minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-foundation start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report".split(" ");
+const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check".split(" ");
 const clicked = new Set();
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
@@ -10,7 +10,7 @@ const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
 const proof = (o) => Object.assign({ date: "21 Jun 2026", status: "Accepted", result: "Completed", text: "Practice under friction.", friction: "Delay", decision: "Hold", domain: "body", day: 1, minimumOnly: false, effect: "Standard held", quality: 4, source: "reflection" }, o);
 const QUALIFIED = {
   stateVersion: 1, onboardingComplete: true, recruitQualified: true, status: "Foundation Confirmed",
-  claim: "I am disciplined.", debriefCount: 6,
+  safetyChecked: true, claim: "I am disciplined.", debriefCount: 6,
   foundation: { currentDay: 7, completedDays: [1,2,3,4,5,6,7], started: true },
   standards: { body: "Stabilizing", mind: "Tested", will: "Under Review", execution: "Baseline", readiness: "HOLD", integrity: "Forming" },
   standardProgress: { body: { proofCount: 1, fails: 0, oldMax: "Tested" }, mind: { proofCount: 2, fails: 0 }, will: { proofCount: 0, fails: 2 }, execution: { proofCount: 1, fails: 0 } },
@@ -39,7 +39,7 @@ const QUALIFIED = {
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(250);
   };
-  const debriefSeed = (over = {}) => Object.assign({ onboardingComplete: true, recruitQualified: true, tab: "debrief", debriefStep: 0,
+  const debriefSeed = (over = {}) => Object.assign({ onboardingComplete: true, recruitQualified: true, safetyChecked: true, tab: "debrief", debriefStep: 0,
     mission: { status: "completed", day: 1, name: "Obedience", domain: "body", painReported: false },
     debrief: { result: "Completed", friction: ["Delay"], negotiation: "", decision: "Hold", lesson: "", correction: "" } }, over);
   const reflect = async ({ result, keepFields = true, friction = true, crisis = false } = {}) => {
@@ -56,7 +56,8 @@ const QUALIFIED = {
     await ca("submit-debrief");
   };
 
-  // S1: Full onboarding traversing every edge branch (about, back, quit/return, fail/retry, report controls, back-safety)
+  // S1: Just-in-time onboarding traversing edge branches (about, back, quit/return, fail/retry,
+  // report controls) then the deferred safety check + claim cards on Today.
   try {
     await page.goto(BASE, { waitUntil: "load" });
     await page.evaluate(k => localStorage.removeItem(k), KEY);
@@ -83,20 +84,15 @@ const QUALIFIED = {
     await ca("complete-first-order");
     await ca("set-report-status", { attr: "data-status", value: "completed" });
     await ca("submit-first-report"); // -> first-result COMPLETED
-    await ca("continue-claim");
-    await ca("select-claim", { attr: "data-claim", value: "I know my limits." });
+    await ca("finish-onboarding");    // first proof -> into the app
+    ok("S1 in app after first proof", (await gs()).onboardingComplete === true);
+    // Deferred safety check (one-time) + deferred claim, both on Today.
+    await ca("toggle-safety", { attr: "data-flag", value: "pain" });
+    await ca("toggle-safety", { attr: "data-flag", value: "pain" });
+    await ca("confirm-safety-check");
     await ca("select-claim", { attr: "data-claim", value: "I am disciplined." });
-    await ca("log-claim");
-    await page.fill("#email", "r@e.com"); await page.fill("#password", "pw"); await page.fill("#displayName", "Alpha Reader"); await page.fill("#callsign", "R");
-    await page.check('[data-key="ageConfirmed"]'); await page.check('[data-key="consentConfirmed"]'); await page.check('[data-key="consentChallenge"]');
-    await ca("continue-account");
-    await ca("toggle-safety", { attr: "data-flag", value: "pain" });
-    await ca("toggle-safety", { attr: "data-flag", value: "pain" });
-    await ca("enter-foundation");
-    await ca("back-safety"); await ca("enter-foundation");
-    await ca("start-foundation");
     await ca("begin-main-mission");
-    ok("S1 onboarding traversal", (await gs()).onboardingComplete === true);
+    ok("S1 onboarding traversal", (await gs()).onboardingComplete === true && (await gs()).safetyChecked === true);
   } catch (e) { ok("S1 onboarding", false, e.message); }
 
   // S1c: first-order minimum-complete branch

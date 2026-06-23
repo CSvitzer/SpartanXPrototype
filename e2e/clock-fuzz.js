@@ -9,7 +9,7 @@ const KEY = "spartan-x-prototype-state";
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
 const DAY = 86400000;
-const base = (lastActiveAt) => ({ stateVersion: 1, onboardingComplete: true, status: "Foundation Confirmed", recruitQualified: true, lastActiveAt, foundation: { currentDay: 1, completedDays: [], started: true } });
+const base = (lastActiveAt) => ({ stateVersion: 1, onboardingComplete: true, safetyChecked: true, status: "Foundation Confirmed", recruitQualified: true, lastActiveAt, foundation: { currentDay: 1, completedDays: [], started: true } });
 
 function badState(s) {
   const v = [];

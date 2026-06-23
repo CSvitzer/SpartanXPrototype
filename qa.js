@@ -44,7 +44,7 @@ const tests = [
   ["Re-entry banner after absence", testReentryAfterAbsence],
   ["No re-entry when recently active", testNoReentryWhenRecent],
   ["Reflection-due reminder on Today", testReflectionDueReminder],
-  ["Account creation requires both consents", testConsentRequiresBoth],
+  ["Just-in-time onboarding: proof in, safety+claim deferred", testJustInTimeOnboarding],
   ["Continue Standard assigns next practice", testContinueStandardLoop],
   ["Proof-logged offers Continue Standard when qualified", testProofLoggedContinueCta],
   ["Elevation progress shown on Standard", testElevationProgressShown],
@@ -66,7 +66,7 @@ const tests = [
   ["Safety scan catches broadened phrasings", testSafetyScanBroadened],
   ["Multi-tab storage sync adopts external state", testMultiTabSync],
   ["Local report computes from own data", testLocalReport],
-  ["Signup states data is local-only", testSignupLocalOnlyNotice],
+  ["Entry screen states data is local-only", testEntryLocalOnlyNotice],
   ["Data modal shows local-only notice", testLocalOnlyNotice],
   ["Valid backup imports after confirm", testImportValidBackup],
   ["Invalid backup is rejected", testImportInvalidRejected],
@@ -797,17 +797,11 @@ async function testLocalReport() {
   assert(getState().modal === "report", "Report modal must open.");
 }
 
-async function testSignupLocalOnlyNotice() {
-  // P0 #2: the account screen must state plainly that nothing is sent and credentials go nowhere.
+async function testEntryLocalOnlyNotice() {
+  // P0 #2: with the account screen dropped, the first (Access) screen must state data is local-only.
   await loadFresh();
-  await clickAction("begin-selection");
-  await clickAction("start-order");
-  await clickAction("complete-first-order");
-  await clickAction("submit-first-report");
-  await clickAction("continue-claim");
-  await clickAction("log-claim");
-  assertText("Create Profile");
-  assertText("nothing is sent anywhere");
+  assertText("Begin Assessment");
+  assertText("stays on this device");
 }
 
 async function testLocalOnlyNotice() {
@@ -869,29 +863,31 @@ async function testOldMaxRecorded() {
   assert(state.standardProgress.body.oldMax === "Tested", "oldMax must record the pre-elevation level.");
 }
 
-async function testConsentRequiresBoth() {
+async function testJustInTimeOnboarding() {
+  // The first proof drops the user into the app; safety check gates the first practice; claim deferred.
   await loadFresh();
   await clickAction("begin-selection");
   await clickAction("start-order");
   await clickAction("complete-first-order");
   await clickAction("submit-first-report");
-  await clickAction("continue-claim");
-  await clickAction("log-claim");
-  assertText("Create Profile");
-  setInput("email", "t@example.com");
-  setInput("password", "prototype-pass");
-  setInput("displayName", "Tester");
-  setInput("callsign", "Tester");
-  setChecked("ageConfirmed", true);
-  setChecked("consentConfirmed", true);
-  await clickAction("continue-account"); // only one consent -> must not advance
-  assert(!doc().body.innerText.includes("System Safety Check"), "Must not advance without both consents.");
-  setChecked("consentChallenge", true);
-  await clickAction("continue-account");
-  assertText("System Safety Check");
+  await clickAction("finish-onboarding");
+  let s = getState();
+  assert(s.onboardingComplete === true, "First proof should complete onboarding.");
+  assert(s.claim === "", "Claim must be deferred, not set during onboarding.");
+  assert(s.safetyChecked === false, "Safety check is deferred to Today.");
+  assert(!doc().querySelector('[data-action="begin-main-mission"]'), "Begin Practice must be gated until the safety check.");
+  assertText("Before your first practice");
+  await clickAction("confirm-safety-check");
+  s = getState();
+  assert(s.safetyChecked === true, "Safety check confirmed.");
+  assert(!!doc().querySelector('[data-action="begin-main-mission"]'), "Begin Practice available after the safety check.");
+  assertText("Pick a claim to test");
+  await clickAction("select-claim", { value: "I am disciplined.", attr: "data-claim" });
+  assert(getState().claim === "I am disciplined.", "Deferred claim can be chosen on Today.");
 }
 
 async function setupToToday() {
+  // Just-in-time onboarding: first proof → straight into the app, then the one-time safety check.
   await loadFresh();
   assertText("Begin Assessment");
   await clickAction("begin-selection");
@@ -902,22 +898,10 @@ async function setupToToday() {
   assertText("First Report");
   await clickAction("submit-first-report");
   assertText("Provisional Candidate");
-  await clickAction("continue-claim");
-  assertText("Select a claim to test");
-  await clickAction("log-claim");
-  assertText("Create Profile");
-  setInput("email", "test@example.com");
-  setInput("password", "prototype-pass");
-  setInput("displayName", "Test User");
-  setInput("callsign", "Tester");
-  setChecked("ageConfirmed", true);
-  setChecked("consentConfirmed", true);
-  setChecked("consentChallenge", true);
-  await clickAction("continue-account");
-  assertText("System Safety Check");
-  await clickAction("enter-foundation");
-  assertText("7-Day Foundation");
-  await clickAction("start-foundation");
+  await clickAction("finish-onboarding");
+  // Now on Today with the one-time safety check card; confirm it so practice can start.
+  assertText("Before your first practice");
+  await clickAction("confirm-safety-check");
   assertText("Begin Practice");
 }
 
@@ -969,6 +953,7 @@ async function loadStateForToday(patch) {
     },
     claim: "I do not have enough time.",
     safetyFlags: [],
+    safetyChecked: true,
     status: "Foundation Candidate",
     onboardingComplete: true,
     recruitQualified: false,

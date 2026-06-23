@@ -4,6 +4,10 @@ const path = require("path");
 
 const root = __dirname;
 const port = Number(process.env.PORT || 4173);
+// Default to loopback (safe). Set HOST=0.0.0.0 to also accept LAN connections (e.g. phone testing
+// on the same Wi-Fi). Note: over plain HTTP a LAN IP is NOT a secure context, so the app loads but
+// the service worker / install / offline will not work — use the HTTPS deploy for a real phone PWA.
+const host = process.env.HOST || "127.0.0.1";
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -41,6 +45,6 @@ const server = http.createServer((request, response) => {
   });
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Spartan X prototype listening on http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Spartan X prototype listening on http://${host}:${port}`);
 });

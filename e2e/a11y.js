@@ -7,7 +7,7 @@ const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
 
 const QUALIFIED = {
-  stateVersion: 1, onboardingComplete: true, recruitQualified: true, status: "Foundation Confirmed",
+  stateVersion: 1, onboardingComplete: true, recruitQualified: true, safetyChecked: true, status: "Foundation Confirmed",
   claim: "I am disciplined.", debriefCount: 6,
   foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true },
   standards: { body: "Stabilizing", mind: "Tested", will: "Under Review", execution: "Baseline", readiness: "HOLD", integrity: "Forming" },
@@ -16,7 +16,7 @@ const QUALIFIED = {
 
 const SCREENS = [
   { name: "access (fresh)", seed: null },
-  { name: "account", seed: { onboardingComplete: false, view: "account", profile: { email: "", password: "", displayName: "", callsign: "", ageConfirmed: false, consentConfirmed: false, consentChallenge: false } } },
+  { name: "deferred safety+claim cards", seed: { onboardingComplete: true, safetyChecked: false, claim: "", status: "Foundation Candidate", tab: "today", foundation: { currentDay: 1, completedDays: [], started: true } } },
   { name: "today", seed: Object.assign({ tab: "today" }, QUALIFIED) },
   { name: "standard", seed: Object.assign({ tab: "standard" }, QUALIFIED) },
   { name: "proof", seed: Object.assign({ tab: "proof" }, QUALIFIED) },
