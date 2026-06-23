@@ -207,10 +207,10 @@ function ok(n, c, d) { R.push({ n, c: !!c, d: d || "" }); }
     await ca("complete-mission");
     await submitReflection("I should punish myself for failing.");
     const s = await gs();
-    ok("safety language -> crisis flag", s.safetyFlags.includes("crisis"));
-    ok("crisis proof under review", s.lastProof.status === "Under Review");
+    ok("safety language -> self-punishment flag", s.safetyFlags.includes("self-punishment"));
+    ok("safety proof under review", s.lastProof.status === "Under Review");
     await ca("set-tab", { attr: "data-tab", value: "today" });
-    ok("crisis resources shown", (await page.locator("#app").innerText()).toLowerCase().includes("findahelpline"));
+    ok("support resources shown for critical flag", (await page.locator("#app").innerText()).toLowerCase().includes("findahelpline"));
   } catch (e) { ok("PHASE7 safety", false, e.message); }
 
   // PHASE 8: Offline (service-worker backed). Playwright's WebKit build does not support service

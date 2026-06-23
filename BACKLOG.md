@@ -33,22 +33,20 @@ near alpha · **P2** = later / polish / production (Phase B).
 
 ## P1 — Important quality & robustness (near alpha)
 
-5. **Today progressive disclosure.** Today is dense (status + 7-day path + 6 sliders + pain +
-   deconstruction + friction map) — violates the Design Doc's "no analytics overload". Collapse
-   Readiness Check / Friction Map / Deconstruction behind `<details>`. Files: `renderTodayTab`.
-6. **Access-rail logic fix.** The rail shows "Active Claim / Readiness" before the user has chosen
-   them. Hide rail meta until onboarding/claim is set. Files: `renderRail`.
-7. **Harden safety-language scan.** Still a keyword backstop; expand patterns and treat as one of
-   several safeguards, never the only one. Files: `applySafetyLanguageScan`.
-8. **Accessibility audit (axe-core).** Add an automated a11y scan as a test layer; fix contrast,
-   labels, focus order, and focus retention across the full-`innerHTML` re-render. (44px targets +
-   reduced-motion already done.)
-9. **Visual regression tests.** Screenshot-diff key screens (desktop + mobile) so a CSS change
-   can't silently break layout. Add to `e2e/`.
-10. **Multi-tab / storage concurrency.** Two open tabs both write the same `localStorage`
-    (last-write-wins can clobber progress). Add a `storage` event handler or write-merge guard.
-11. **Dampen the desktop hero-rail** after onboarding (redundant "PROVE THAT YOU BELONG" beside
-    the app). Files: `renderRail` / `styles.css`.
+5. ✅ **DONE — Today progressive disclosure.** Foundation Path / Active Claim / Friction Map collapsed
+   behind `<details class="disclosure">`; primary CTA moved above the fold; mobile metric-grid made
+   compact 2-col (was 1-col tall cards). Verified at 390px. Tests use `openDisclosures()`.
+6. ✅ **DONE — Access-rail logic fix.** `renderRail` shows Status/Readiness/Active Claim meta only
+   after `onboardingComplete` — no premature placeholder claim.
+7. ✅ **DONE — Harden safety-language scan.** Broadened crisis/restriction/injury patterns, added a
+   `self-punishment` category, and (gap fix) Today now shows support resources for ANY critical flag.
+8. ✅ **DONE (A6) — Accessibility audit (axe-core).** `e2e/a11y.js` WCAG2A/AA across 9 screens +
+   keyboard/focus-retention; fixed `aria-selected`→`aria-current` and focus-restore on re-render.
+9. **Visual regression tests.** *Deliberately deferred* — golden-image diffing is flaky and
+   maintenance-heavy; lower ROI than the shipped layers. Revisit if CSS churn increases.
+10. ✅ **DONE — Multi-tab / storage concurrency.** `syncFromStorage()` + top-level `storage` listener
+    adopts another tab's state (equality-guarded to converge), preventing last-write-wins clobber.
+11. ✅ **DONE — Dampen the desktop hero-rail** after onboarding (compact rail, hero removed).
 12. **Real-device smoke test.** Manually verify install + offline on iOS Safari and Android Chrome
     (only headless Chromium tested so far).
 

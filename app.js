@@ -453,6 +453,16 @@ function writeKey(key, value) {
   }
 }
 
+// P1 #10: when another tab writes the shared state, adopt it before this tab can clobber it with a
+// stale copy. The equality guard makes this converge (no render/save ping-pong between tabs).
+function syncFromStorage() {
+  const incoming = loadState();
+  if (JSON.stringify(incoming) === JSON.stringify(state)) return false;
+  state = incoming;
+  render();
+  return true;
+}
+
 function saveState() {
   const payload = JSON.stringify(state);
   if (writeKey(STORAGE_KEY, payload)) {
@@ -613,22 +623,29 @@ function scheduleSplashTransition() {
 
 function renderRail() {
   const command = computeReadiness(state.readiness);
+  const onboarded = state.onboardingComplete;
+  // #11: dampen the hero once onboarded (it's redundant beside the running app).
+  // #6: only show rail meta once onboarded, so we never display a claim/status the user
+  // hasn't actually set yet.
   return `
-    <aside class="brand-rail">
+    <aside class="brand-rail${onboarded ? " compact" : ""}">
       <div class="wordmark">
         <span class="mark" aria-hidden="true"></span>
         <strong>Spartan X</strong>
       </div>
-      <div class="rail-copy">
-        <p class="kicker">Stoic Standard Minimalism</p>
-        <h1>Prove that you belong.</h1>
-        <p>Claims do not qualify. Proof does. The system measures response, friction, reflection quality, and whether the standard can move without reckless pressure.</p>
-      </div>
-      <div class="rail-meta">
-        <div class="meta-row"><span>Status</span><strong>${escapeHtml(state.status)}</strong></div>
-        <div class="meta-row"><span>Readiness</span><strong>${command.command}</strong></div>
-        <div class="meta-row"><span>Active Claim</span><strong>${escapeHtml(state.claim)}</strong></div>
-      </div>
+      ${onboarded ? `
+        <div class="rail-meta">
+          <div class="meta-row"><span>Status</span><strong>${escapeHtml(state.status)}</strong></div>
+          <div class="meta-row"><span>Readiness</span><strong>${command.command}</strong></div>
+          <div class="meta-row"><span>Active Claim</span><strong>${escapeHtml(state.claim)}</strong></div>
+        </div>
+      ` : `
+        <div class="rail-copy">
+          <p class="kicker">Stoic Standard Minimalism</p>
+          <h1>Prove that you belong.</h1>
+          <p>Claims do not qualify. Proof does. The system measures response, friction, reflection quality, and whether the standard can move without reckless pressure.</p>
+        </div>
+      `}
     </aside>
   `;
 }
@@ -1050,12 +1067,18 @@ function renderActiveTab() {
   }
 }
 
+// Progressive disclosure (frontend.md): collapse secondary/reference panels so the primary daily
+// action sits above the fold on a phone. Body content stays in the DOM; raw clicks still work.
+function disclosure(summary, body, open = false) {
+  return `<details class="disclosure"${open ? " open" : ""}><summary>${escapeHtml(summary)}</summary>${body}</details>`;
+}
+
 function renderTodayTab() {
   const readiness = computeReadiness(state.readiness);
   const reflectionPending = ["completed", "scaled", "failed", "pain"].includes(state.mission.status);
   return `
     <section class="view">
-      ${state.safetyFlags.includes("crisis") ? renderCrisisResources() : ""}
+      ${hasCriticalSafetyFlag() ? renderCrisisResources() : ""}
       ${state.reentry ? renderReentryBanner() : ""}
       ${reflectionPending ? `
         <div class="panel warning">
@@ -1084,15 +1107,10 @@ function renderTodayTab() {
             <h2>Rule Engine Assignment</h2>
             <p>${escapeHtml(state.engine.assignmentReason)}</p>
           </div>
-          ${renderFoundationProgressPanel()}
           <div class="readiness-banner ${readiness.command.toLowerCase()}">
             <span class="label">Readiness Guidance</span>
             <strong>${readiness.command}</strong>
             <p>${escapeHtml(readiness.reason)}</p>
-          </div>
-          <div class="panel">
-            <h2>Next Required Action</h2>
-            <p>${readiness.command === "RECOVER" ? "Complete a recovery-safe practice. Physical intensity disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
           </div>
           <div class="actions">
             ${state.recruitQualified
@@ -1102,11 +1120,16 @@ function renderTodayTab() {
               : `<button class="btn primary" data-action="begin-main-mission">Begin Practice</button>`}
             <button class="btn steel" data-action="set-tab" data-tab="standard">View Standard</button>
           </div>
+          <div class="panel">
+            <h2>Next Required Action</h2>
+            <p>${readiness.command === "RECOVER" ? "Complete a recovery-safe practice. Physical intensity disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
+          </div>
+          ${disclosure("Foundation Path", renderFoundationProgressPanel())}
         </div>
         <aside class="stack">
           ${renderReadinessControls()}
-          ${renderDeconstructionPanel()}
-          ${renderFrictionMap()}
+          ${disclosure("Active Claim", renderDeconstructionPanel())}
+          ${disclosure("Friction Map", renderFrictionMap())}
         </aside>
       </div>
     </section>
@@ -1151,7 +1174,6 @@ function renderDeconstructionPanel() {
   const claimCase = buildClaimCase();
   return `
     <div class="panel">
-      <h2>Active Claim</h2>
       <p class="muted">${escapeHtml(state.claim)}</p>
       <div class="line">
         <span class="tag">Evidence: ${claimCase.evidenceCount}</span>
@@ -1171,7 +1193,6 @@ function renderFrictionMap() {
   const rows = top.length ? top : [["Delay", 1], ["Phone distraction", 1], ["Boredom", 1], ["Fatigue", 1], ["Ego", 1]];
   return `
     <div class="panel">
-      <h2>Friction Map</h2>
       <div class="stack">
         ${rows.map(([name, count], index) => `
           <div class="line"><span class="tag">${index + 1}</span><span>${escapeHtml(name)}</span><span class="muted small">${count} signal${count === 1 ? "" : "s"}</span></div>
@@ -1184,7 +1205,6 @@ function renderFrictionMap() {
 function renderFoundationProgressPanel() {
   return `
     <div class="panel">
-      <h2>Foundation Path</h2>
       <div class="timeline compact">
         ${FOUNDATION_DAYS.map(day => {
           const completed = state.foundation.completedDays.includes(day.day);
@@ -3453,19 +3473,27 @@ function applySafetyLanguageScan() {
   // same flag keys the Safety Gate and safetyMessage already understand.
   const patterns = {
     crisis: [
-      /\bwant to die\b/, /\bkill myself\b/, /\bhurt myself\b/, /\bself[\s-]?harm\b/,
-      /\bsuicide\b/, /\bsuicidal\b/, /\boverdose\b/, /\bend (?:it all|my life)\b/,
-      /\bno reason to (?:live|go on)\b/, /\bdeserve pain\b/, /\bpunish myself\b/,
-      /\bdeserve to suffer\b/,
+      /\bwant to die\b/, /\bkill myself\b/, /\bhurt myself\b/, /\bharm myself\b/,
+      /\bself[\s-]?harm\b/, /\bcut(?:ting)? myself\b/, /\bsuicide\b/, /\bsuicidal\b/,
+      /\boverdose\b/, /\bend (?:it all|my life|it)\b/, /\bno reason to (?:live|go on)\b/,
+      /\bbetter off dead\b/, /\bdon'?t want to (?:live|be here|wake up|exist)\b/,
+      /\bcan'?t go on\b/, /\bgive up on life\b/, /\bnothing to live for\b/,
+    ],
+    "self-punishment": [
+      /\bpunish myself\b/, /\bself[\s-]?punish/, /\bdeserve (?:the )?pain\b/,
+      /\bdeserve to suffer\b/, /\bmake myself suffer\b/, /\bhurt myself as punishment\b/,
+      /\bi deserve (?:this|the) pain\b/, /\bbeat myself up\b/,
     ],
     restriction: [
       /\bnot eat\b/, /\bwon'?t eat\b/, /\bstop eating\b/, /\bstarve\b/,
       /\bfood is weakness\b/, /\bextreme restriction\b/, /\bskip(?:ping)? meals\b/,
-      /\bpurge\b/,
+      /\bpurge\b/, /\brestrict(?:ing)? (?:food|eating|calories|myself)\b/,
+      /\bnot deserve to eat\b/, /\bpunish.*with food\b/,
     ],
     injury: [
       /\bsharp pain\b/, /\btorn\b/, /\bsprain(?:ed)?\b/, /\bfractur/, /\bswollen\b/,
-      /\bcan'?t move\b/, /\bsomething (?:popped|snapped)\b/,
+      /\bcan'?t move\b/, /\bsomething (?:popped|snapped)\b/, /\bdislocat/,
+      /\bshooting pain\b/, /\bgo(?:ing)? numb\b/,
     ],
   };
 
@@ -3952,6 +3980,13 @@ function renderReentryBanner() {
       <div class="actions"><button class="btn ghost" data-action="dismiss-reentry">Acknowledged</button></div>
     </div>
   `;
+}
+
+// Multi-tab sync only makes sense between real top-level tabs; skip inside the QA iframe.
+if (typeof window !== "undefined" && window.top === window.self) {
+  window.addEventListener("storage", event => {
+    if (event.key === STORAGE_KEY) syncFromStorage();
+  });
 }
 
 initSession();

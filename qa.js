@@ -63,6 +63,8 @@ const tests = [
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
   ["Legacy unsigned proofs are not flagged", testLedgerLegacyNotFlagged],
+  ["Safety scan catches broadened phrasings", testSafetyScanBroadened],
+  ["Multi-tab storage sync adopts external state", testMultiTabSync],
   ["Local report computes from own data", testLocalReport],
   ["Signup states data is local-only", testSignupLocalOnlyNotice],
   ["Data modal shows local-only notice", testLocalOnlyNotice],
@@ -169,6 +171,7 @@ async function testAllClaimModels() {
       onboardingComplete: true,
       tab: "today",
     });
+    openDisclosures();
     assertText(expected);
   }
 }
@@ -186,6 +189,7 @@ async function testTargetedPractice() {
     tab: "today",
   });
   await clickAction("select-foundation-day", { value: "3", attr: "data-day" });
+  openDisclosures();
   assertText("Monotony Tolerance");
   assertText("Boredom appeared 3 times");
 }
@@ -266,7 +270,8 @@ async function testSafetyLanguage() {
   await fillByPlaceholder("What changes next?", "I will stop escalation and seek human support.");
   await clickAction("submit-debrief");
   const state = getState();
-  assert(state.safetyFlags.includes("crisis"), "Expected crisis safety flag.");
+  // "punish myself" is the self-punishment category (also critical) — both pause acceptance.
+  assert(state.safetyFlags.includes("self-punishment"), "Expected self-punishment safety flag.");
   assert(state.lastProof.status === "Under Review", "Expected proof under review.");
 }
 
@@ -535,6 +540,7 @@ async function testReplacementDoctrineAssigned() {
   const c = win().buildClaimCase();
   assert(c.status === "Contradiction formed", "Expected contradiction formed when all evidence is met.");
   assert(c.doctrineAssigned === true, "Expected replacement doctrine assigned on contradiction.");
+  openDisclosures();
   assertText("Replacement doctrine assigned");
 }
 
@@ -742,6 +748,34 @@ async function testLedgerLegacyNotFlagged() {
   await loadStateForToday({ proofLedger: [proof({}), proof({ domain: "mind" })] });
   assert(win().verifyLedger(getState().proofLedger) === true, "Legacy unsigned proofs must not be flagged.");
   assert(!doc().body.innerText.toLowerCase().includes("integrity check failed"), "No tamper banner for a legacy ledger.");
+}
+
+async function testSafetyScanBroadened() {
+  // P1 #7: newer phrasings must still be caught, including the self-punishment category.
+  const cases = [
+    ["I honestly feel better off dead lately.", "crisis"],
+    ["I want to make myself suffer for failing.", "self-punishment"],
+    ["I will be restricting calories to compensate.", "restriction"],
+  ];
+  for (const [text, flag] of cases) {
+    await loadStateForToday({
+      debrief: { result: "Completed", friction: ["Delay"], negotiation: text, decision: "Hold", lesson: "x", correction: "y" },
+    });
+    win().applySafetyLanguageScan();
+    win().render();
+    assert(getState().safetyFlags.includes(flag), `Expected "${flag}" flag for: ${text}`);
+  }
+}
+
+async function testMultiTabSync() {
+  // P1 #10: another tab writes the shared state; this tab must adopt it (not clobber with stale data).
+  await loadStateForToday({ debriefCount: 2 });
+  const external = { ...getState(), debriefCount: 42 };
+  win().localStorage.setItem(STORAGE_KEY, JSON.stringify(external)); // simulate the other tab's write
+  const changed = win().syncFromStorage();
+  assert(changed === true, "syncFromStorage must report it adopted external state.");
+  assert(getState().debriefCount === 42, "This tab must adopt the other tab's state.");
+  assert(win().syncFromStorage() === false, "A second sync with no change must be a no-op (converges).");
 }
 
 async function testLocalReport() {
@@ -1109,6 +1143,12 @@ function proof(overrides = {}) {
     quality: 4,
     ...overrides,
   };
+}
+
+function openDisclosures() {
+  // Today's reference panels are collapsed <details> by default; expand them so assertText (which
+  // ignores hidden content) can see the deconstruction/foundation/friction text.
+  doc().querySelectorAll("details.disclosure").forEach(d => { d.open = true; });
 }
 
 function waitForFrame() {

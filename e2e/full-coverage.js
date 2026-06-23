@@ -224,6 +224,8 @@ const QUALIFIED = {
     await tryca("set-proof-filter", { attr: "data-filter", value: "body" });
     await tryca("set-proof-filter", { attr: "data-filter", value: "all" });
     await ca("set-tab", { attr: "data-tab", value: "today" });
+    // Foundation Path is a collapsed <details> now — expand so the day chip is clickable.
+    await page.evaluate(() => document.querySelectorAll("details.disclosure").forEach(d => { d.open = true; })).catch(() => {});
     await tryca("select-foundation-day", { attr: "data-day", value: "3" });
     await ca("set-tab", { attr: "data-tab", value: "today" });
     await ca("continue-standard");
