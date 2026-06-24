@@ -61,10 +61,12 @@ const tests = [
   ["Crisis flag does not downgrade earned history", testHistoryPreservedDuringCrisis],
   ["Corrupt main state recovers from last-good backup", testLastGoodRecovery],
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
+  ["Proof captures friction intensity level", testFrictionLevelCaptured],
   ["App-created proofs are signed and verify", testLedgerSignedOnCreate],
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
   ["Legacy unsigned proofs are not flagged", testLedgerLegacyNotFlagged],
+  ["PRESS stability: hold first strong check out of recovery", testPressStability],
   ["Overtraining: sustained multi-marker load -> RECOVER", testOvertrainingBroadened],
   ["Pre-mission friction prime shows for repeats", testFrictionPrime],
   ["Foundation graduation card shows + acks", testGraduationCard],
@@ -728,6 +730,25 @@ async function testRecoveryBannerDismiss() {
   assert(!doc().body.innerText.toLowerCase().includes("recovered from backup"), "Banner must disappear after dismiss.");
 }
 
+async function testFrictionLevelCaptured() {
+  // #19: capture a real per-proof friction intensity (not just the AAR-quality proxy).
+  await setupToToday();
+  await clickAction("begin-main-mission");
+  await clickAction("complete-mission");
+  await clickAction("debrief-next");        // result -> friction
+  await clickFriction("Delay");
+  setSelect("frictionLevel", "high");
+  await clickAction("debrief-next");         // -> negotiation
+  await fillByPlaceholder("What excuse appeared?", "I delayed the start.");
+  await clickAction("debrief-next");         // -> decision
+  await clickAction("debrief-next");         // -> lesson
+  await fillByPlaceholder("What did this reveal?", "I delay when it is convenient.");
+  await clickAction("debrief-next");         // -> correction
+  await fillByPlaceholder("What changes next?", "Start before the phone next time.");
+  await clickAction("submit-debrief");
+  assert(getState().proofLedger[0].frictionLevel === "high", "Proof must capture the friction intensity.");
+}
+
 async function testLedgerSignedOnCreate() {
   // B4: applyProof must sign every new proof, and the resulting chain must verify.
   await setupToToday();
@@ -767,6 +788,18 @@ async function testLedgerLegacyNotFlagged() {
   await loadStateForToday({ proofLedger: [proof({}), proof({ domain: "mind" })] });
   assert(win().verifyLedger(getState().proofLedger) === true, "Legacy unsigned proofs must not be flagged.");
   assert(!doc().body.innerText.toLowerCase().includes("integrity check failed"), "No tamper banner for a legacy ledger.");
+}
+
+async function testPressStability() {
+  // Engine: a strong check straight out of recovery-level load holds at HOLD; a second confirms PRESS.
+  const fit = { sleep: 5, energy: 5, soreness: 1, pain: "none", stress: 1, emotional: 1, motivation: 3 };
+  const recoveryLevel = { sleep: 1, energy: 1, soreness: 4, pain: "none", stress: 4, emotional: 4 };
+  await loadStateForToday({ readiness: fit, readinessHistory: [recoveryLevel] });
+  assert(win().computeReadiness(getState().readiness).command === "HOLD", "First strong check out of recovery must HOLD.");
+  await loadStateForToday({ readiness: fit, readinessHistory: [fit] });
+  assert(win().computeReadiness(getState().readiness).command === "PRESS", "A prior strong check allows PRESS.");
+  await loadStateForToday({ readiness: fit, readinessHistory: [] });
+  assert(win().computeReadiness(getState().readiness).command === "PRESS", "No history -> PRESS allowed (first-timer).");
 }
 
 async function testOvertrainingBroadened() {
@@ -882,14 +915,15 @@ async function testLocalReport() {
     tab: "system",
     debriefCount: 4,
     activeDays: ["2026-06-01", "2026-06-02", "2026-06-03"],
-    proofLedger: [proof({ status: "Accepted", quality: 5 }), proof({ status: "Under Review", quality: 2 })],
+    proofLedger: [proof({ status: "Accepted", quality: 5 }), proof({ status: "Under Review", quality: 2 }), proof({ status: "Accepted", decision: "Recover", quality: 3 })],
   });
   const r = win().computeReport();
   const s = getState();
   // initSession legitimately appends today, so compare to actual state rather than the seed count.
   assert(r.activeDays === s.activeDays.length && r.activeDays >= 3, "Report must count active days from state.");
   assert(r.reflections === 4, "Report must reflect debriefCount.");
-  assert(r.totalProofs === 2 && r.byStatus["Under Review"] === 1, "Report must count proof statuses.");
+  assert(r.totalProofs === 3 && r.byStatus["Under Review"] === 1, "Report must count proof statuses.");
+  assert(r.recoveryProofs === 1, "Recovery decisions must be credited as a skill.");
   await clickAction("open-report");
   assertText("Your numbers");
   assert(getState().modal === "report", "Report modal must open.");

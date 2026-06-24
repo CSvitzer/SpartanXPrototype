@@ -360,6 +360,7 @@ const DEFAULT_STATE = {
   debrief: {
     result: "Completed",
     friction: ["Delay"],
+    frictionLevel: "medium",
     negotiation: "",
     decision: "Hold",
     lesson: "",
@@ -1447,6 +1448,10 @@ function renderDebriefField(key, d) {
             <button data-action="toggle-debrief-friction" data-friction="${type}" aria-pressed="${d.friction.includes(type)}">${type}</button>
           `).join("")}
         </div>
+        <label for="frictionLevel" class="label">Intensity</label>
+        <select id="frictionLevel" data-input="debrief" data-key="frictionLevel">
+          ${["low", "medium", "high"].map(l => `<option ${(d.frictionLevel || "medium") === l ? "selected" : ""}>${l}</option>`).join("")}
+        </select>
       </div>`;
   }
   if (key === "negotiation") {
@@ -1508,7 +1513,7 @@ function renderProofTab() {
                 <span>${escapeHtml(entry.date)}</span>
               </div>
               <strong>${escapeHtml(entry.text)}</strong>
-              <p class="muted">Friction: ${escapeHtml(entry.friction)}. Decision: ${escapeHtml(entry.decision)}. Standard effect: ${escapeHtml(entry.effect)}. Domain: ${escapeHtml(entry.domain || "—")}.</p>
+              <p class="muted">Friction: ${escapeHtml(entry.friction)}${entry.frictionLevel ? ` (${escapeHtml(entry.frictionLevel)})` : ""}. Decision: ${escapeHtml(entry.decision)}. Standard effect: ${escapeHtml(entry.effect)}. Domain: ${escapeHtml(entry.domain || "—")}.</p>
             </article>
           `).join("")}
         </div>
@@ -2302,6 +2307,9 @@ function computeReport() {
   const topFriction = Object.entries(fric).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const tiers = computeQualification();
   const highest = tiers.filter(t => t.status === "qualified").map(t => t.name).slice(-1)[0] || "None yet";
+  // Recovery-as-skill: a Recover decision is a competence (choosing recovery under pressure), not a
+  // failure — credit it explicitly. These are already Accepted proofs; here we make them visible.
+  const recoveryProofs = ledger.filter(p => p && p.decision === "Recover").length;
   return {
     activeDays: (state.activeDays || []).length,
     reflections: state.debriefCount || 0,
@@ -2312,6 +2320,7 @@ function computeReport() {
     topFriction,
     underReviewRate: ledger.length ? Math.round((byStatus["Under Review"] / ledger.length) * 100) : 0,
     highestTier: highest,
+    recoveryProofs,
   };
 }
 
@@ -2340,6 +2349,7 @@ function renderReportModal() {
           <p><span>Incomplete</span><span>${r.byStatus.Incomplete}</span></p>
           <p><span>Under review</span><span>${r.byStatus["Under Review"]} (${r.underReviewRate}%)</span></p>
           <p><span>Rejected</span><span>${r.byStatus.Rejected}</span></p>
+          <p><span>Recovery obeyed (a skill)</span><span>${r.recoveryProofs}</span></p>
           <p><span>Most common friction</span><span>${fric}</span></p>
         </div>
         <div class="actions">
@@ -3489,6 +3499,7 @@ function submitDebrief() {
     result: state.debrief.result,
     text: `${state.debrief.result} ${state.mission.name} under ${state.debrief.friction.join(", ") || "named"} friction.`,
     friction: state.debrief.friction.join(", ") || "Unspecified",
+    frictionLevel: state.debrief.frictionLevel || "medium",
     decision: state.debrief.decision,
     domain: state.mission.domain || "execution",
     day: state.mission.day,
@@ -3510,6 +3521,7 @@ function submitDebrief() {
   state.debrief = {
     result: "Completed",
     friction: [],
+    frictionLevel: "medium",
     negotiation: "",
     decision: "Hold",
     lesson: "",
@@ -3562,6 +3574,16 @@ function confirmPainChange() {
   updateStandardsFromReadiness();
 }
 
+// Pure (no state, no flags): does a readiness snapshot read as recovery-level load? Used only by the
+// PRESS-stability gate to look at the PREVIOUS snapshot — kept pure to avoid recursion into computeReadiness.
+function readinessRecoverLevel(r) {
+  if (!r) return false;
+  const stressFlag = r.stress >= 4 || r.emotional >= 4;
+  const markers = (r.sleep <= 2 ? 1 : 0) + (r.soreness >= 4 ? 1 : 0) + (r.energy <= 2 ? 1 : 0)
+    + (["moderate", "severe"].includes(r.pain) ? 1 : 0) + (stressFlag ? 1 : 0);
+  return r.pain === "severe" || markers >= 3;
+}
+
 function computeReadiness(r) {
   const stressFlag = r.stress >= 4 || r.emotional >= 4;
   const sleepDebt = r.sleep <= 2;
@@ -3592,6 +3614,16 @@ function computeReadiness(r) {
   }
 
   if (r.energy >= 4 && r.sleep >= 4 && r.soreness <= 2 && r.pain === "none" && !stressFlag) {
+    // PRESS stability: straight out of a recovery-level check, hold the first strong check at HOLD and
+    // require a second to confirm — prevents the one-good-day ego-press / bounce-back injury. Gated on
+    // history, so the oracle's clean-state sweep (no readinessHistory) is unaffected.
+    const prev = state.readinessHistory[state.readinessHistory.length - 1];
+    if (prev && readinessRecoverLevel(prev)) {
+      return {
+        command: "HOLD",
+        reason: "Readiness is recovering. Full standard unlocks after a second strong check.",
+      };
+    }
     return {
       command: "PRESS",
       reason: "Readiness supports full standard. No safety flag is active.",

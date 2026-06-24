@@ -87,17 +87,22 @@ modules; Foundation graduation moment; pre-mission friction prompt; broaden over
     600, check-in 500, callsign 24) + a 2MB guard in `applyImportText`. Escaping + quota already verified.
 18. **Timezone/DST correctness** for `activeDays` — *largely handled* (UTC ISO-date keying via
     `toISOString().slice(0,10)`, validated by clock-fuzz). Local-vs-UTC day boundary is the only nuance.
-19. **Moving Standard depth** — explicit Regressed→rebuild flow; capture real friction level per
-    proof instead of the AAR-quality proxy. *(Still open — engine/oracle change.)*
+19. ✅ **DONE — Moving Standard depth** — Regressed→rebuild guidance surfaced via `standardProgressNote`;
+    real per-proof **friction intensity** now captured (`debrief.frictionLevel` → `proof.frictionLevel`,
+    shown in the ledger) instead of the AAR-quality proxy.
 
-### Expert-review enhancements — shipped (P2 batch, 2026-06-24)
+### Expert-review enhancements — shipped (P2 + engine batch, 2026-06-24)
 - ✅ **Pre-mission friction prime** (`renderFrictionPrime`) — names a repeating friction on the brief.
 - ✅ **Foundation graduation moment** (`renderGraduationCard`) — one-time identity card at Confirmed.
-- ✅ **Broadened overtraining detection** (`hasOvertrainingRisk`) — sustained multi-marker load, not
-  just all-or-nothing.
+- ✅ **Broadened overtraining detection** (`hasOvertrainingRisk`) — sustained multi-marker load.
 - ✅ **375px tab-label sizing** (0.56rem → 0.7rem, padded).
-- Still open from review: recovery-as-skill credit/modules; PRESS stability (2 good polls before
-  RECOVER→PRESS) — deferred as a higher-risk core-readiness change + UX-friction tradeoff.
+- ✅ **PRESS stability** (`readinessRecoverLevel` + history gate in `computeReadiness`) — a strong
+  check straight out of recovery holds at HOLD; a second confirms PRESS. **Oracle-safe** (history-gated,
+  clean-state sweep unchanged → 12,596/0 preserved).
+- ✅ **Recovery-as-skill credit** — Recover decisions counted + shown as a skill in the report
+  (`computeReport.recoveryProofs`); they were already Accepted proofs, now visibly credited.
+- **All engine changes kept the oracle-swept pure functions' clean-state behaviour identical** (new
+  behaviour layered on history/new fields), so the differential-oracle determinism guarantee survives.
 
 ### Production infrastructure (PRD §6 — turns prototype into product)
 20. Backend + PostgreSQL (the §6 16-table schema); API.
