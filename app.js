@@ -217,6 +217,7 @@ const DEFAULT_STATE = {
   safetyFlags: [],
   safetyChecked: false,
   callsignPromptDismissed: false,
+  foundationGraduated: true,
   status: "Visitor",
   onboardingComplete: false,
   recruitQualified: false,
@@ -1310,6 +1311,19 @@ function renderFoundationProgressPanel() {
   `;
 }
 
+// Pre-mission friction prime (top-1% lens: close the gap between diagnosis and decision). If a
+// friction repeats, name it before the practice and ask for a decision now — not just at debrief.
+function renderFrictionPrime() {
+  const dominant = dominantHighFriction();
+  if (!dominant) return "";
+  return `
+    <div class="panel warning">
+      <p class="kicker">Friction prime</p>
+      <p><strong>${escapeHtml(dominant.name)}</strong> showed up ${dominant.count}× recently. Decide now how you'll meet it before you start — not after.</p>
+    </div>
+  `;
+}
+
 function renderMissionTab() {
   const readiness = computeReadiness(state.readiness);
   const mission = readiness.command === "RECOVER"
@@ -1341,6 +1355,7 @@ function renderMissionTab() {
           <div><span class="label">Assignment Reason</span><p>${escapeHtml(state.engine.assignmentReason)}</p></div>
         </div>
       </div>
+      ${renderFrictionPrime()}
       <div class="timer">
         <div>
           <strong>${state.mission.status === "active" ? "10:00" : "--:--"}</strong>
@@ -1540,11 +1555,40 @@ function renderProofLoggedTab() {
   `;
 }
 
+// One-time graduation moment at Foundation Confirmed (top-1% lens: mark the identity shift from
+// "training my foundation" to "holding a moving standard"). Non-blocking card, not a modal.
+function renderGraduationCard() {
+  const domain = weakestDomain();
+  const dominant = dominantHighFriction();
+  const claimLine = state.claim ? `Your claim — “${escapeHtml(state.claim)}” — now has early evidence.` : "";
+  return `
+    <div class="panel bronze">
+      <p class="kicker">Foundation Confirmed</p>
+      <h2>Seven days proven. The standard now moves.</h2>
+      <p class="muted small">Weakest signal: <strong>${escapeHtml(domain)}</strong>.${dominant ? ` Top friction: <strong>${escapeHtml(dominant.name)}</strong> (${dominant.count}×).` : ""} ${claimLine}</p>
+      <p class="muted small">From here the standard rises only through reflected proof and reflection quality. Proof #1 is evidence; proof #3 is mastery.</p>
+      <div class="actions"><button class="btn primary" data-action="graduate-ack">Hold the standard</button></div>
+    </div>
+  `;
+}
+
+function renderQualTier(tier) {
+  return `
+    <article class="qual-tier ${tier.status}">
+      <div class="line"><strong>${escapeHtml(tier.name)}</strong><span class="status-chip ${qualTone(tier.status)}">${qualLabel(tier.status)}</span></div>
+      <ul class="requirement-list">
+        ${tier.requirements.map(([label, done]) => `<li class="${done ? "done" : ""}">${escapeHtml(label)}</li>`).join("")}
+      </ul>
+    </article>
+  `;
+}
+
 function renderStandardTab() {
   const standardSummary = buildStandardSummary();
   const qualification = computeQualification();
   return `
     <section class="view">
+      ${state.status === "Foundation Confirmed" && !state.foundationGraduated ? renderGraduationCard() : ""}
       <div class="view-header">
         <div class="view-title">
           <p class="kicker">Standard Profile</p>
@@ -1573,14 +1617,13 @@ function renderStandardTab() {
         <aside class="panel">
           <h2>Qualification Ladder</h2>
           <div class="stack">
-            ${qualification.map(tier => `
-              <article class="qual-tier ${tier.status}">
-                <div class="line"><strong>${escapeHtml(tier.name)}</strong><span class="status-chip ${qualTone(tier.status)}">${qualLabel(tier.status)}</span></div>
-                <ul class="requirement-list">
-                  ${tier.requirements.map(([label, done]) => `<li class="${done ? "done" : ""}">${escapeHtml(label)}</li>`).join("")}
-                </ul>
-              </article>
-            `).join("")}
+            ${qualification.filter(tier => tier.status !== "locked").map(renderQualTier).join("")}
+            ${(() => {
+              const locked = qualification.filter(tier => tier.status === "locked");
+              return locked.length
+                ? disclosure(`Locked tiers (${locked.length})`, `<div class="stack">${locked.map(renderQualTier).join("")}</div>`)
+                : "";
+            })()}
           </div>
         </aside>
       </div>
@@ -2428,6 +2471,7 @@ document.addEventListener("click", event => {
   if (action === "finish-onboarding") finishOnboarding();
   if (action === "confirm-safety-check") confirmSafetyCheck();
   if (action === "confirm-callsign") state.callsignPromptDismissed = true;
+  if (action === "graduate-ack") state.foundationGraduated = true;
   if (action === "set-tab") state.tab = control.dataset.tab;
   if (action === "set-module") state.modules.active = control.dataset.module;
   if (action === "set-guide-focus") {
@@ -3325,6 +3369,8 @@ function beginMission() {
 // Post-Foundation continuation: assign the next practice (weakest-domain Continued Standard) and begin it.
 function continueStandard() {
   setPracticeForDay(FOUNDATION_DAYS.length);
+  const domain = weakestDomain();
+  state.engine.assignmentReason = `Continued Standard → ${domain} (your weakest domain). ${standardProgressNote(domain)}`;
   beginMission();
 }
 
@@ -3485,6 +3531,7 @@ function advanceFoundation() {
   } else {
     state.status = "Foundation Confirmed";
     state.recruitQualified = true;
+    state.foundationGraduated = false; // triggers the one-time graduation card on Standard
     state.tab = "standard";
   }
 }
@@ -3998,10 +4045,18 @@ function recordReadinessSnapshot() {
 }
 
 function hasOvertrainingRisk() {
-  const recent = state.readinessHistory.slice(-3);
+  const recent = state.readinessHistory.slice(-5);
   if (recent.length < 3) return false;
-  return recent.every(item => item.sleep <= 2 && item.soreness >= 4)
-    || recent.every(item => item.pain === "moderate" || item.pain === "severe");
+  const last3 = recent.slice(-3);
+  // Original strict rules (kept).
+  if (last3.length === 3 && last3.every(item => item.sleep <= 2 && item.soreness >= 4)) return true;
+  if (last3.length === 3 && last3.every(item => item.pain === "moderate" || item.pain === "severe")) return true;
+  // Broader: sustained multi-marker load across recent checks — catches accumulation/volume, not
+  // just the all-or-nothing patterns above (trainer-lens fix: single metrics summed, not isolated).
+  const markers = item => (item.sleep <= 2 ? 1 : 0) + (item.soreness >= 4 ? 1 : 0)
+    + (item.energy <= 2 ? 1 : 0) + (["moderate", "severe"].includes(item.pain) ? 1 : 0) + (item.stress >= 4 ? 1 : 0);
+  const loaded = recent.filter(item => markers(item) >= 2).length;
+  return loaded >= Math.ceil(recent.length * 0.6);
 }
 
 function safetyMessage(flags) {

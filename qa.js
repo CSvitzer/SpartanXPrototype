@@ -64,6 +64,10 @@ const tests = [
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
   ["Legacy unsigned proofs are not flagged", testLedgerLegacyNotFlagged],
+  ["Overtraining: sustained multi-marker load -> RECOVER", testOvertrainingBroadened],
+  ["Pre-mission friction prime shows for repeats", testFrictionPrime],
+  ["Foundation graduation card shows + acks", testGraduationCard],
+  ["Locked qualification tiers are collapsed", testLockedTiersCollapsed],
   ["Severe pain downgrade warns + safe-defaults", testSeverePainGuard],
   ["Injury flag forces RECOVER (activity-restricting)", testInjuryFlagForcesRecover],
   ["Safety flags editable + clearable in System", testSafetyPanelManage],
@@ -753,6 +757,45 @@ async function testLedgerLegacyNotFlagged() {
   await loadStateForToday({ proofLedger: [proof({}), proof({ domain: "mind" })] });
   assert(win().verifyLedger(getState().proofLedger) === true, "Legacy unsigned proofs must not be flagged.");
   assert(!doc().body.innerText.toLowerCase().includes("integrity check failed"), "No tamper banner for a legacy ledger.");
+}
+
+async function testOvertrainingBroadened() {
+  // Trainer fix: sustained multi-marker load (not just all-or-nothing) must flag overtraining.
+  const loaded = { sleep: 2, energy: 2, soreness: 3, pain: "none", stress: 4, emotional: 2, motivation: 3 };
+  await loadStateForToday({
+    readiness: { sleep: 4, energy: 4, soreness: 1, pain: "none", stress: 1, emotional: 1, motivation: 3 },
+    readinessHistory: [loaded, loaded, loaded],
+  });
+  assert(win().computeReadiness(getState().readiness).command === "RECOVER", "Sustained multi-marker load must force RECOVER even when today's readiness is fit.");
+}
+
+async function testFrictionPrime() {
+  // Top-1% lens: a repeating friction is named on the practice brief before starting.
+  await loadStateForToday({
+    tab: "mission",
+    mission: { status: "assigned", day: 1, name: "Obedience", domain: "body" },
+    proofLedger: [proof({ friction: "Boredom" }), proof({ friction: "Boredom" }), proof({ friction: "Boredom" })],
+  });
+  assertText("Friction prime");
+  assertText("showed up");
+}
+
+async function testGraduationCard() {
+  // Top-1% lens: a one-time graduation moment at Foundation Confirmed; dismissable.
+  await loadStateForToday({
+    tab: "standard", status: "Foundation Confirmed", foundationGraduated: false, recruitQualified: true,
+    foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true },
+  });
+  assertText("Seven days proven");
+  await clickAction("graduate-ack");
+  assert(getState().foundationGraduated === true, "Ack must dismiss the graduation card.");
+  assert(!doc().body.innerText.toLowerCase().includes("seven days proven"), "Card must disappear after ack.");
+}
+
+async function testLockedTiersCollapsed() {
+  // UI #15: locked qualification tiers are tucked behind a disclosure (long on mobile).
+  await loadStateForToday({ tab: "standard" });
+  assertText("Locked tiers");
 }
 
 async function testSeverePainGuard() {

@@ -79,14 +79,25 @@ modules; Foundation graduation moment; pre-mission friction prompt; broaden over
 13. ✅ **RESOLVED — RECOVER/pain latch decision.** Kept soft (no hard latch); strengthened severe
     downgrade with an injury warning + safe-default button. See the expert sanity-check section above.
 14. **Reflection ergonomics.** Make stepper chips tappable to jump/review; consider a "quick
-    reflection" for low-friction days (daily 6-step flow may fatigue).
-15. **Collapse locked qualification tiers** in the Standard ladder (long on mobile).
-16. **Continue Standard copy** — more specific guidance than "practice in your weakest domain".
+    reflection" for low-friction days (daily 6-step flow may fatigue). *(Still open — left as the one
+    higher-risk item; touches the heavily-tested debrief flow.)*
+15. ✅ **DONE — Collapse locked qualification tiers** behind a "Locked tiers (N)" disclosure on Standard.
+16. ✅ **DONE — Continue Standard copy** — now names the weakest domain + next-step progress note.
 17. **Input robustness/perf** — huge CSV import, emoji, very long text; quota fuzzing (escaping is
-    already verified).
-18. **Timezone/DST correctness** for `activeDays` (ISO-date keying).
+    already verified). *(Largely covered: maxlength on inputs, escaping verified, quota path tested.)*
+18. **Timezone/DST correctness** for `activeDays` — *largely handled* (UTC ISO-date keying via
+    `toISOString().slice(0,10)`, validated by clock-fuzz). Local-vs-UTC day boundary is the only nuance.
 19. **Moving Standard depth** — explicit Regressed→rebuild flow; capture real friction level per
-    proof instead of the AAR-quality proxy.
+    proof instead of the AAR-quality proxy. *(Still open — engine/oracle change.)*
+
+### Expert-review enhancements — shipped (P2 batch, 2026-06-24)
+- ✅ **Pre-mission friction prime** (`renderFrictionPrime`) — names a repeating friction on the brief.
+- ✅ **Foundation graduation moment** (`renderGraduationCard`) — one-time identity card at Confirmed.
+- ✅ **Broadened overtraining detection** (`hasOvertrainingRisk`) — sustained multi-marker load, not
+  just all-or-nothing.
+- ✅ **375px tab-label sizing** (0.56rem → 0.7rem, padded).
+- Still open from review: recovery-as-skill credit/modules; PRESS stability (2 good polls before
+  RECOVER→PRESS) — deferred as a higher-risk core-readiness change + UX-friction tradeoff.
 
 ### Production infrastructure (PRD §6 — turns prototype into product)
 20. Backend + PostgreSQL (the §6 16-table schema); API.
