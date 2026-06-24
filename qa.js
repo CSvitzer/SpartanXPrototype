@@ -41,6 +41,7 @@ const tests = [
   ["RECOVER readiness assigns recovery practice", testRecoverAssignsRecovery],
   ["Post-Foundation targets weakest domain", testWeakestDomainPostFoundation],
   ["Reflection stepper gates submit to last step", testDebriefStepper],
+  ["Reflection stepper chips jump to a step", testDebriefJump],
   ["Re-entry banner after absence", testReentryAfterAbsence],
   ["No re-entry when recently active", testNoReentryWhenRecent],
   ["Reflection-due reminder on Today", testReflectionDueReminder],
@@ -582,6 +583,15 @@ async function testDebriefStepper() {
   for (let i = 0; i < 5; i++) await clickAction("debrief-next");
   assertText("Step 6 of 6");
   assert(doc().querySelector('[data-action="submit-debrief"]'), "Submit must appear on the last step.");
+}
+
+async function testDebriefJump() {
+  // #14: stepper chips are tappable to jump/review (any direction), not just Next/Back.
+  await loadStateForToday({ tab: "debrief", mission: { status: "completed" }, debriefStep: 0 });
+  await clickAction("debrief-jump", { value: "4", attr: "data-index" });
+  assert(getState().debriefStep === 4, "Tapping a stepper chip must jump to that step.");
+  await clickAction("debrief-jump", { value: "1", attr: "data-index" });
+  assert(getState().debriefStep === 1, "Stepper jump works backward too.");
 }
 
 async function testReentryAfterAbsence() {

@@ -19,6 +19,7 @@ const LAYERS = [
   { name: "fuzz (qualified)", script: "fuzz.js", env: { QUALIFIED: "1" } },
   { name: "clock-fuzz", script: "clock-fuzz.js" },
   { name: "a11y (axe + keyboard)", script: "a11y.js" },
+  { name: "visual (layout sanity)", script: "visual.js" },
   { name: "progression", script: "progression.js" },
   { name: "cross-engine (firefox+webkit)", script: "cross-engine.js" },
 ];

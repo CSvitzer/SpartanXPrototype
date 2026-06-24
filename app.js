@@ -1414,7 +1414,7 @@ function renderDebriefForm() {
   return `
     <p class="kicker">Step ${index + 1} of ${DEBRIEF_STEPS.length}</p>
     <div class="progress-line">
-      ${DEBRIEF_STEPS.map((step, i) => `<span class="${i <= index ? "active" : ""}">${DEBRIEF_STEP_LABELS[step]}</span>`).join("")}
+      ${DEBRIEF_STEPS.map((step, i) => `<button type="button" class="${i === index ? "active" : ""} ${i < index ? "done" : ""}" data-action="debrief-jump" data-index="${i}" aria-current="${i === index}">${DEBRIEF_STEP_LABELS[step]}</button>`).join("")}
     </div>
     <div class="form-grid">
       ${renderDebriefField(key, d)}
@@ -1453,7 +1453,7 @@ function renderDebriefField(key, d) {
     return `
       <div class="field">
         <label for="negotiation">Negotiation</label>
-        <textarea id="negotiation" data-input="debrief" data-key="negotiation" placeholder="What excuse appeared?">${escapeHtml(d.negotiation)}</textarea>
+        <textarea id="negotiation" maxlength="1000" data-input="debrief" data-key="negotiation" placeholder="What excuse appeared?">${escapeHtml(d.negotiation)}</textarea>
       </div>`;
   }
   if (key === "decision") {
@@ -1469,13 +1469,13 @@ function renderDebriefField(key, d) {
     return `
       <div class="field">
         <label for="lesson">Lesson</label>
-        <textarea id="lesson" data-input="debrief" data-key="lesson" placeholder="What did this reveal?">${escapeHtml(d.lesson)}</textarea>
+        <textarea id="lesson" maxlength="1000" data-input="debrief" data-key="lesson" placeholder="What did this reveal?">${escapeHtml(d.lesson)}</textarea>
       </div>`;
   }
   return `
       <div class="field">
         <label for="correction">Correction</label>
-        <textarea id="correction" data-input="debrief" data-key="correction" placeholder="What changes next?">${escapeHtml(d.correction)}</textarea>
+        <textarea id="correction" maxlength="1000" data-input="debrief" data-key="correction" placeholder="What changes next?">${escapeHtml(d.correction)}</textarea>
       </div>`;
 }
 
@@ -1686,7 +1686,7 @@ function renderSystemTab() {
             <h2>Safety Notes</h2>
             <div class="field">
               <label for="injuryNotes">Training limitations</label>
-              <textarea id="injuryNotes" data-input="settings" data-key="injuryNotes" placeholder="Injury notes or movements to avoid">${escapeHtml(state.settings.injuryNotes)}</textarea>
+              <textarea id="injuryNotes" maxlength="600" data-input="settings" data-key="injuryNotes" placeholder="Injury notes or movements to avoid">${escapeHtml(state.settings.injuryNotes)}</textarea>
             </div>
           </div>
         </div>
@@ -1824,7 +1824,7 @@ function renderCircleModule() {
       </div>
       <div class="field">
         <label for="circleCheckin">Your check-in</label>
-        <textarea id="circleCheckin" data-input="module" data-module="circle" data-key="latestCheckin" placeholder="Status, blocker, next action">${escapeHtml(circle.latestCheckin)}</textarea>
+        <textarea id="circleCheckin" maxlength="500" data-input="module" data-module="circle" data-key="latestCheckin" placeholder="Status, blocker, next action">${escapeHtml(circle.latestCheckin)}</textarea>
       </div>
       <div class="actions">
         <button class="btn primary" data-action="submit-circle-checkin">Submit Check-In</button>
@@ -2261,6 +2261,7 @@ function downloadBackup() {
 // stages a candidate; the user must confirm. Exposed on window so it is testable headlessly.
 function applyImportText(text) {
   try {
+    if (typeof text !== "string" || text.length > 2_000_000) throw new Error("file too large or unreadable");
     const parsed = JSON.parse(text);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || parsed.stateVersion !== STATE_VERSION) {
       throw new Error("not a Spartan X backup");
@@ -2513,6 +2514,7 @@ document.addEventListener("click", event => {
   if (action === "toggle-debrief-friction") toggleArray(state.debrief.friction, control.dataset.friction);
   if (action === "debrief-next") state.debriefStep = Math.min((state.debriefStep || 0) + 1, DEBRIEF_STEPS.length - 1);
   if (action === "debrief-back") state.debriefStep = Math.max((state.debriefStep || 0) - 1, 0);
+  if (action === "debrief-jump") state.debriefStep = Math.min(Math.max(Number(control.dataset.index) || 0, 0), DEBRIEF_STEPS.length - 1);
   if (action === "submit-debrief") submitDebrief();
   if (action === "advance-foundation") advanceFoundation();
   if (action === "open-export") { state.modal = "export"; clearImport(); }

@@ -916,23 +916,32 @@ button:disabled {
 
 .progress-line {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 0.4rem;
 }
 
-.progress-line span {
+.progress-line span,
+.progress-line button {
   min-height: 2rem;
   display: grid;
   place-items: center;
   border: 1px solid rgba(241, 238, 231, 0.12);
   border-radius: 6px;
+  background: transparent;
   color: var(--ash);
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
+  cursor: pointer;
 }
 
-.progress-line span.active {
+.progress-line button.done {
+  color: var(--bone);
+  border-color: rgba(241, 238, 231, 0.25);
+}
+
+.progress-line span.active,
+.progress-line button.active {
   border-color: rgba(176, 141, 87, 0.75);
   color: var(--bronze);
 }

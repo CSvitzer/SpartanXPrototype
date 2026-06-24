@@ -12,6 +12,7 @@
     "oracle": "node oracle.js",
     "chaos": "node storage-chaos.js",
     "a11y": "node a11y.js",
+    "visual": "node visual.js",
     "cross": "node cross-engine.js",
     "icons": "node gen-icons.js",
     "all": "node run-all.js"

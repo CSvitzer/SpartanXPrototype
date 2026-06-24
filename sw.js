@@ -1,4 +1,4 @@
-const CACHE = "spartanx-v9";
+const CACHE = "spartanx-v10";
 const ASSETS = [
   "./",
   "./index.html",

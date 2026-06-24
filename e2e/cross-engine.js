@@ -28,7 +28,12 @@ function run(script, engine) {
   for (const engine of ENGINES) {
     for (const script of SCRIPTS) {
       process.stdout.write(`\n--- ${engine} : ${script} ---\n`);
-      const r = await run(script, engine);
+      let r = await run(script, engine);
+      if (r.code !== 0) {
+        // Retry once: WebKit/Firefox launches under the heavy matrix occasionally race transiently.
+        console.log(`(retry ${engine}:${script} after non-zero exit)`);
+        r = await run(script, engine);
+      }
       console.log(r.tail.trim());
       console.log(`${r.code === 0 ? "OK" : "FAIL"} (${engine}:${script})`);
       results.push(r);

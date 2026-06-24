@@ -2,7 +2,7 @@ const playwright = require("playwright");
 const ENGINE = process.env.SX_BROWSER || "chromium";
 const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
-const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign".split(" ");
+const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab simulate-team-week start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign graduate-ack debrief-jump".split(" ");
 const clicked = new Set();
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
@@ -143,9 +143,18 @@ const QUALIFIED = {
     ok("pause Fatigue -> minimum", (await gs()).mission.scaled === true);
     await seed(missionActive); await ca("quit-main-mission"); await ca("set-pause-signal", { attr: "data-signal", value: "Avoidance" }); await ca("pause-stop");
     ok("pause -> stop", (await gs()).tab === "debrief");
-    // debrief-back coverage
+    // debrief-back + debrief-jump (tappable stepper) coverage
     await seed(debriefSeed()); await ca("debrief-next"); await ca("debrief-back"); ok("debrief-back", (await gs()).debriefStep === 0);
+    await ca("debrief-jump", { attr: "data-index", value: "3" }); ok("debrief-jump", (await gs()).debriefStep === 3);
   } catch (e) { ok("S4 pause", false, e.message); }
+
+  // S4b: Foundation graduation card ack
+  try {
+    await seed(Object.assign({}, QUALIFIED, { tab: "standard", status: "Foundation Confirmed", foundationGraduated: false }));
+    ok("graduation card shows", /seven days proven/i.test(await page.locator("#app").innerText()));
+    await ca("graduate-ack");
+    ok("graduate-ack dismisses", (await gs()).foundationGraduated === true);
+  } catch (e) { ok("S4b graduation", false, e.message); }
 
   // S5: Adjust variants
   try {

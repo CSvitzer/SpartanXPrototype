@@ -34,6 +34,9 @@ Scripts:
   breakage without a device. The pure-logic layers (oracle/fuzz/progression) are engine-agnostic and
   not matrixed. Note: Playwright's WebKit build lacks service-worker support, so deep-playthrough
   skips its offline assertion on WebKit (logged, not silent; real iOS Safari supports SW). 8 runs.
+- `npm run visual` — `visual.js`: **layout-sanity** across 4 widths (320/360/390/768) × 8 screens —
+  asserts no horizontal overflow, screen rendered, and tab bar within the viewport. A stable,
+  maintenance-free alternative to flaky golden-image diffs. 96 checks.
 - `npm run a11y` — `a11y.js`: runs **axe-core** (WCAG 2.0/2.1 A + AA) across every key screen + the
   data and report modals, plus a keyboard reachability and **focus-retention** check (focus must not
   drop to `<body>` after the full-innerHTML re-render). Fails on any serious/critical violation.

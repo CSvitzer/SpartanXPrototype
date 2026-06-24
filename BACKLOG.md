@@ -42,8 +42,9 @@ near alpha · **P2** = later / polish / production (Phase B).
    `self-punishment` category, and (gap fix) Today now shows support resources for ANY critical flag.
 8. ✅ **DONE (A6) — Accessibility audit (axe-core).** `e2e/a11y.js` WCAG2A/AA across 9 screens +
    keyboard/focus-retention; fixed `aria-selected`→`aria-current` and focus-restore on re-render.
-9. **Visual regression tests.** *Deliberately deferred* — golden-image diffing is flaky and
-   maintenance-heavy; lower ROI than the shipped layers. Revisit if CSS churn increases.
+9. ✅ **DONE (stable variant) — Visual layout-sanity layer** (`e2e/visual.js`, `npm run visual`): 4
+   widths × 8 screens assert no horizontal overflow / rendered / tab bar in viewport. Chose this over
+   flaky golden-image pixel-diffs. 96 checks. (Golden-image diffing still intentionally avoided.)
 10. ✅ **DONE — Multi-tab / storage concurrency.** `syncFromStorage()` + top-level `storage` listener
     adopts another tab's state (equality-guarded to converge), preventing last-write-wins clobber.
 11. ✅ **DONE — Dampen the desktop hero-rail** after onboarding (compact rail, hero removed).
@@ -78,13 +79,12 @@ modules; Foundation graduation moment; pre-mission friction prompt; broaden over
 ### Product / UX polish
 13. ✅ **RESOLVED — RECOVER/pain latch decision.** Kept soft (no hard latch); strengthened severe
     downgrade with an injury warning + safe-default button. See the expert sanity-check section above.
-14. **Reflection ergonomics.** Make stepper chips tappable to jump/review; consider a "quick
-    reflection" for low-friction days (daily 6-step flow may fatigue). *(Still open — left as the one
-    higher-risk item; touches the heavily-tested debrief flow.)*
+14. ✅ **DONE — Reflection stepper chips are tappable** (debrief-jump, any direction). "Quick
+    reflection" mode still optional/open.
 15. ✅ **DONE — Collapse locked qualification tiers** behind a "Locked tiers (N)" disclosure on Standard.
 16. ✅ **DONE — Continue Standard copy** — now names the weakest domain + next-step progress note.
-17. **Input robustness/perf** — huge CSV import, emoji, very long text; quota fuzzing (escaping is
-    already verified). *(Largely covered: maxlength on inputs, escaping verified, quota path tested.)*
+17. ✅ **DONE — Input robustness** — `maxlength` on all free-text inputs (reflection 1000, notes
+    600, check-in 500, callsign 24) + a 2MB guard in `applyImportText`. Escaping + quota already verified.
 18. **Timezone/DST correctness** for `activeDays` — *largely handled* (UTC ISO-date keying via
     `toISOString().slice(0,10)`, validated by clock-fuzz). Local-vs-UTC day boundary is the only nuance.
 19. **Moving Standard depth** — explicit Regressed→rebuild flow; capture real friction level per
