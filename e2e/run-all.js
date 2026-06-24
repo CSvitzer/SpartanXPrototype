@@ -20,6 +20,8 @@ const LAYERS = [
   { name: "clock-fuzz", script: "clock-fuzz.js" },
   { name: "a11y (axe + keyboard)", script: "a11y.js" },
   { name: "visual (layout sanity)", script: "visual.js" },
+  { name: "pwa (install + offline)", script: "pwa.js" },
+  { name: "sync-readiness (mock round-trip)", script: "sync-readiness.js" },
   { name: "progression", script: "progression.js" },
   { name: "cross-engine (firefox+webkit)", script: "cross-engine.js" },
 ];

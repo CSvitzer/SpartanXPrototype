@@ -727,6 +727,7 @@ function renderAccess() {
       <div class="actions">
         <button class="btn primary" data-action="begin-selection">Begin Assessment</button>
         <button class="btn ghost" data-action="open-about">What is Spartan X?</button>
+        <button class="btn ghost" data-action="open-export">Restore a backup</button>
       </div>
     </section>
   `;

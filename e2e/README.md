@@ -37,6 +37,14 @@ Scripts:
 - `npm run visual` — `visual.js`: **layout-sanity** across 4 widths (320/360/390/768) × 8 screens —
   asserts no horizontal overflow, screen rendered, and tab bar within the viewport. A stable,
   maintenance-free alternative to flaky golden-image diffs. 96 checks.
+- `npm run pwa` — `pwa.js`: PWA **install + offline contract** — manifest fields (name/display/icons
+  192+512/maskable/theme), apple-touch-icon, icons serve image/png, service worker registers+activates,
+  and offline reload still renders from cache. The machine-testable core of the device test (real iOS
+  home-screen install still needs a device). 14 checks.
+- `npm run sync` — `sync-readiness.js`: mocks a **cross-device round-trip** (device A signs proofs →
+  JSON transport → fresh device B restores from the entry screen) and asserts lossless adoption,
+  hash-chain still verifies, invariants clean, and a tampered-in-transit ledger is caught. Proves the
+  proof model is Phase-B sync-ready without a backend. 9 checks.
 - `npm run a11y` — `a11y.js`: runs **axe-core** (WCAG 2.0/2.1 A + AA) across every key screen + the
   data and report modals, plus a keyboard reachability and **focus-retention** check (focus must not
   drop to `<body>` after the full-innerHTML re-render). Fails on any serious/critical violation.

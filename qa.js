@@ -79,6 +79,7 @@ const tests = [
   ["Multi-tab storage sync adopts external state", testMultiTabSync],
   ["Local report computes from own data", testLocalReport],
   ["Entry screen states data is local-only", testEntryLocalOnlyNotice],
+  ["Fresh device can restore a backup from entry", testRestoreFromEntry],
   ["Data modal shows local-only notice", testLocalOnlyNotice],
   ["Valid backup imports after confirm", testImportValidBackup],
   ["Invalid backup is rejected", testImportInvalidRejected],
@@ -934,6 +935,19 @@ async function testEntryLocalOnlyNotice() {
   await loadFresh();
   assertText("Begin Assessment");
   assertText("stays on this device");
+}
+
+async function testRestoreFromEntry() {
+  // Sync-to-new-device: a fresh install must be able to restore a backup from the entry screen.
+  await loadFresh();
+  assertText("Begin Assessment");
+  const backup = JSON.stringify({ stateVersion: 1, onboardingComplete: true, safetyChecked: true, status: "Foundation Confirmed", debriefCount: 9, claim: "I am disciplined." });
+  await clickAction("open-export");
+  win().applyImportText(backup);
+  assert(getState().importStatus === "ready", "Backup must stage from the entry screen.");
+  await clickAction("confirm-import");
+  const s = getState();
+  assert(s.onboardingComplete === true && s.debriefCount === 9, "Fresh device must restore the backup.");
 }
 
 async function testLocalOnlyNotice() {
