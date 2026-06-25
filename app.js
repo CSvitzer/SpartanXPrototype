@@ -218,6 +218,8 @@ const DEFAULT_STATE = {
   safetyChecked: false,
   callsignPromptDismissed: false,
   foundationGraduated: true,
+  // Phase-B cloud (opt-in, local-first). url empty == pure offline/local (default, unchanged behavior).
+  cloud: { url: "", handle: "", token: "", lastSync: "", status: "", leaderboard: [], challenges: [] },
   status: "Visitor",
   onboardingComplete: false,
   recruitQualified: false,
@@ -1313,8 +1315,25 @@ function renderFoundationProgressPanel() {
   `;
 }
 
+const FRICTION_RESPONSES = {
+  Delay: "Start the 2-minute minimum before you decide anything else.",
+  Time: "Shrink the practice to its minimum and protect that window first.",
+  Boredom: "Stay on the single target — boredom is the rep, not a stop signal.",
+  Fatigue: "Scale, don't skip: do the recovery-safe minimum, then reflect.",
+  Ego: "Drop the intensity you're chasing — the standard is clean execution, not a PR.",
+  Distraction: "Remove the trigger (phone away), then restart the single target.",
+  Avoidance: "Name what you're avoiding out loud, then do the smallest next action.",
+  Pain: "Stop physical load. Report pain honestly and switch to recovery.",
+  Embarrassment: "It's data, not judgment — log it plainly and continue.",
+  Negotiation: "No renegotiation mid-rep. Do the minimum as written, debrief after.",
+};
+
+function frictionResponse(name) {
+  return FRICTION_RESPONSES[name] || "Name it, do the minimum cleanly, reflect after.";
+}
+
 // Pre-mission friction prime (top-1% lens: close the gap between diagnosis and decision). If a
-// friction repeats, name it before the practice and ask for a decision now — not just at debrief.
+// friction repeats, name it AND coach the response before the practice — not just at debrief.
 function renderFrictionPrime() {
   const dominant = dominantHighFriction();
   if (!dominant) return "";
@@ -1322,6 +1341,7 @@ function renderFrictionPrime() {
     <div class="panel warning">
       <p class="kicker">Friction prime</p>
       <p><strong>${escapeHtml(dominant.name)}</strong> showed up ${dominant.count}× recently. Decide now how you'll meet it before you start — not after.</p>
+      <p class="muted small">Try this: ${escapeHtml(frictionResponse(dominant.name))}</p>
     </div>
   `;
 }
@@ -1641,6 +1661,30 @@ function renderStandardTab() {
   `;
 }
 
+// Phase-B cloud panel (System). Off by default — Spartan X is local-first; this connects the
+// opt-in sync/leaderboard/challenges when a backend is configured (?backend=<url>).
+function renderCloudPanel() {
+  const c = state.cloud || {};
+  if (!c.url) {
+    return `
+      <div class="panel">
+        <h2>Cloud (beta)</h2>
+        <p class="muted small">Cloud sync is <strong>off</strong> — Spartan X is local-only by default. Phase B (verified cross-device sync, leaderboards &amp; challenges) connects here. Your proof ledger merges losslessly across devices and is re-verified server-side. Enable with <code>?backend=&lt;url&gt;</code>.</p>
+      </div>`;
+  }
+  const board = (c.leaderboard || []).slice(0, 10);
+  const challenges = c.challenges || [];
+  return `
+    <div class="panel">
+      <h2>Cloud (beta)</h2>
+      <p class="muted small">${c.status ? escapeHtml(c.status) : "Verified cross-device sync. Opt-in. Your data stays local-first."}</p>
+      <div class="actions"><button class="btn steel" data-action="cloud-sync">Sync now</button></div>
+      ${c.handle ? `<p class="muted small">Handle: <strong>${escapeHtml(c.handle)}</strong>${c.lastSync ? " · last sync " + escapeHtml(c.lastSync.slice(0, 16).replace("T", " ")) : ""}</p>` : ""}
+      ${board.length ? `<p class="label">Leaderboard (active days)</p><div class="report-rows">${board.map((u, i) => `<p><span>${i + 1}. ${escapeHtml(u.handle)}</span><span>${escapeHtml(String(u.metric))}</span></p>`).join("")}</div>` : ""}
+      ${challenges.length ? `<p class="label">Challenges</p><div class="stack">${challenges.map(ch => `<div class="line"><span>${escapeHtml(ch.title)}</span><button class="btn ghost" data-action="cloud-complete-challenge" data-id="${escapeAttr(ch.id)}">Submit</button></div>`).join("")}</div>` : ""}
+    </div>`;
+}
+
 function renderSystemTab() {
   return `
     <section class="view">
@@ -1670,6 +1714,7 @@ function renderSystemTab() {
             ${state.safetyFlags.length ? `<p class="muted small">${escapeHtml(safetyMessage(state.safetyFlags))}</p>` : ""}
             ${hasCriticalSafetyFlag() ? renderCrisisResources() : ""}
           </div>
+          ${renderCloudPanel()}
           <div class="panel">
             <h2>Privacy</h2>
             <label class="check-row">
@@ -2508,6 +2553,8 @@ document.addEventListener("click", event => {
   if (action === "cognitive-correct") recordCognitiveResponse(true);
   if (action === "cognitive-miss") recordCognitiveResponse(false);
   if (action === "select-foundation-day") selectFoundationDay(Number(control.dataset.day));
+  if (action === "cloud-sync") { cloudSync(); return; }            // async; renders itself
+  if (action === "cloud-complete-challenge") { cloudCompleteChallenge(control.dataset.id); return; }
   if (action === "begin-main-mission") beginMission();
   if (action === "continue-standard") continueStandard();
   if (action === "complete-mission") completeMission();
@@ -3134,17 +3181,16 @@ function hashEntry(entry, prevHash) {
   return fnv1a(canon) + fnv1a(canon + "::salt"); // two passes widen the digest to cut collisions
 }
 
-// Walk newest->older. Every hash-bearing entry must hash-match its own content+prevHash, and where
-// two consecutive entries both carry hashes their link must hold. Tolerant of the 200-cap (no genesis
-// requirement at the tail) and of legacy entries written before B4 (no hash -> skipped, not flagged).
+// Per-entry, content-addressed tamper-evidence: every hash-bearing entry must hash-match its own
+// content (+ its recorded prevHash). This is the CRDT-safe form — it survives a cross-device union
+// merge (where adjacent entries come from different device chains), while still catching the real
+// threat: a proof's content edited after signing. Legacy entries (no hash) are skipped, not flagged.
 function verifyLedger(ledger) {
   if (!Array.isArray(ledger)) return false;
   for (let i = 0; i < ledger.length; i++) {
     const e = ledger[i];
     if (!e || typeof e.hash !== "string") continue;
     if (hashEntry(e, e.prevHash) !== e.hash) return false;        // content edited after signing
-    const older = ledger[i + 1];
-    if (older && typeof older.hash === "string" && e.prevHash !== older.hash) return false; // link broken
   }
   return true;
 }
@@ -3160,12 +3206,81 @@ function applyProof(entry) {
   // Chain the entry to the current head AFTER its final status/effect are set.
   entry.prevHash = (state.proofLedger[0] && state.proofLedger[0].hash) || "genesis";
   entry.hash = hashEntry(entry, entry.prevHash);
+  entry.at = new Date().toISOString(); // sortable timestamp for lossless cross-device merge (not hashed)
   state.proofLedger.unshift(entry);
   state.proofLedger = state.proofLedger.slice(0, 200);
   state.lastProof = entry;
   state.debriefCount += 1;
   updateStandardsFromProof(entry);
   return entry;
+}
+
+// Phase-B sync primitive (local-first, CRDT-style): the proof ledger is an append-only,
+// content-addressed (B4 hash) log, so merging two devices is a lossless SET UNION by hash — no
+// last-write-wins data loss (cf. FP-TW-SYNC-UNION). Newest-first by timestamp; capped like applyProof.
+function mergeLedgers(a, b) {
+  const seen = new Map();
+  const keyOf = e => (e && (e.hash || [e.date, e.text, e.domain, e.quality, e.decision].join("|")));
+  for (const e of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
+    if (!e) continue;
+    const k = keyOf(e);
+    if (!seen.has(k)) seen.set(k, e);
+  }
+  return [...seen.values()]
+    .sort((x, y) => String(y.at || "").localeCompare(String(x.at || "")))
+    .slice(0, 200);
+}
+
+// ---- Phase-B cloud client (opt-in, local-first). Every call is wrapped so a cloud failure NEVER
+// blocks the offline app. Configure via ?backend=<url> or System → Cloud. ----
+function cloudConfigured() { return !!(state.cloud && state.cloud.url); }
+
+function cloudSnapshot() {
+  const r = computeReport();
+  return {
+    handle: state.cloud.handle || state.profile.callsign || "Operator",
+    metrics: { activeDays: r.activeDays, reflections: r.reflections, totalProofs: r.totalProofs, avgQuality: r.avgQuality, highestTier: r.highestTier, recoveryProofs: r.recoveryProofs },
+    proofLedger: state.proofLedger,
+  };
+}
+
+async function cloudCall(path, opts) {
+  const base = state.cloud.url.replace(/\/$/, "");
+  const res = await fetch(base + path, Object.assign({ headers: { "content-type": "application/json" } }, opts || {}));
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  return res.json();
+}
+
+async function cloudSync() {
+  if (!cloudConfigured()) { state.cloud.status = "Cloud is off — this app is local-only."; render(); return; }
+  try {
+    state.cloud.status = "Syncing…"; render();
+    if (!state.cloud.token) {
+      const a = await cloudCall("/api/auth", { method: "POST", body: JSON.stringify({ callsign: state.profile.callsign || "Operator" }) });
+      state.cloud.handle = a.handle; state.cloud.token = a.token;
+    }
+    // Server union-merges + re-verifies the hash chain (anti-cheat); merge its result back losslessly.
+    const s = await cloudCall("/api/sync", { method: "POST", body: JSON.stringify({ token: state.cloud.token, snapshot: cloudSnapshot() }) });
+    if (Array.isArray(s.ledger)) state.proofLedger = mergeLedgers(state.proofLedger, s.ledger);
+    const lb = await cloudCall("/api/leaderboard");
+    const ch = await cloudCall("/api/challenges");
+    state.cloud.leaderboard = lb.leaderboard || [];
+    state.cloud.challenges = ch.challenges || [];
+    state.cloud.lastSync = new Date().toISOString();
+    state.cloud.status = `Synced as ${state.cloud.handle}.` + (s.rejected ? ` ${s.rejected} proof(s) rejected by server verification.` : "");
+  } catch (error) {
+    state.cloud.status = "Cloud unavailable — your data is safe locally."; // local-first: never blocks
+  }
+  render();
+}
+
+async function cloudCompleteChallenge(id) {
+  if (!cloudConfigured() || !state.cloud.token) return;
+  try {
+    const r = await cloudCall("/api/challenges/" + encodeURIComponent(id) + "/complete", { method: "POST", body: JSON.stringify({ token: state.cloud.token, snapshot: cloudSnapshot() }) });
+    state.cloud.status = r.met ? "Challenge completed ✓" : "Not met yet — keep going.";
+    await cloudSync();
+  } catch (error) { state.cloud.status = "Could not submit challenge."; render(); }
 }
 
 function recordModuleProof({
@@ -4186,6 +4301,12 @@ function initSession() {
   const today = new Date(now).toISOString().slice(0, 10);
   if (!state.activeDays.includes(today)) state.activeDays.push(today);
   state.activeDays = state.activeDays.slice(-60);
+  // Opt-in cloud: ?backend=<url> wires the Phase-B server (default off = pure local).
+  try {
+    if (!state.cloud) state.cloud = structuredClone(DEFAULT_STATE.cloud);
+    const backend = new URLSearchParams(location.search).get("backend");
+    if (backend) state.cloud.url = backend;
+  } catch {}
 }
 
 function renderReentryBanner() {

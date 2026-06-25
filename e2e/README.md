@@ -37,10 +37,18 @@ Scripts:
 - `npm run visual` — `visual.js`: **layout-sanity** across 4 widths (320/360/390/768) × 8 screens —
   asserts no horizontal overflow, screen rendered, and tab bar within the viewport. A stable,
   maintenance-free alternative to flaky golden-image diffs. 96 checks.
-- `npm run pwa` — `pwa.js`: PWA **install + offline contract** — manifest fields (name/display/icons
-  192+512/maskable/theme), apple-touch-icon, icons serve image/png, service worker registers+activates,
-  and offline reload still renders from cache. The machine-testable core of the device test (real iOS
-  home-screen install still needs a device). 14 checks.
+- `npm run pwa` — `pwa.js`: PWA **install + offline contract**. Queries **Chrome's own installability
+  engine via CDP** (`Page.getInstallabilityErrors` / `getAppManifest` — the same criteria a Chrome/
+  Android device uses to offer "Install"; empty = installable) plus manifest fields (name/display/
+  icons 192+512/maskable/theme), apple-touch-icon, icons serve image/png, SW registers+activates, and
+  offline reload renders from cache. 16 checks. Real iOS Safari "Add to Home Screen" has no criteria
+  engine or automation hook, so its literal gesture/visuals still need a device or a real-device cloud.
+- `npm run phaseb` — `phaseb.js`: end-to-end **Phase-B cloud** against a real running **mock backend**
+  (`mock-backend/server.js`, spawned automatically). Proves: opt-in auth, **lossless CRDT-style
+  cross-device sync** (set-union by hash — no last-write-wins loss), **server-side anti-cheat**
+  (hash re-verification rejects forged proofs), leaderboard, challenge evaluation, and **local-first
+  resilience** (cloud down → app survives, data intact). 13 checks. The backend is a mock (in-memory);
+  production hosting/auth/persistence is real Phase B.
 - `npm run sync` — `sync-readiness.js`: mocks a **cross-device round-trip** (device A signs proofs →
   JSON transport → fresh device B restores from the entry screen) and asserts lossless adoption,
   hash-chain still verifies, invariants clean, and a tampered-in-transit ledger is caught. Proves the

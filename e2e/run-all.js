@@ -22,6 +22,7 @@ const LAYERS = [
   { name: "visual (layout sanity)", script: "visual.js" },
   { name: "pwa (install + offline)", script: "pwa.js" },
   { name: "sync-readiness (mock round-trip)", script: "sync-readiness.js" },
+  { name: "phaseb (mock cloud sync)", script: "phaseb.js" },
   { name: "progression", script: "progression.js" },
   { name: "cross-engine (firefox+webkit)", script: "cross-engine.js" },
 ];

@@ -113,7 +113,21 @@ modules; Foundation graduation moment; pre-mission friction prompt; broaden over
 25. **Region-verified crisis-resource directory** (productionizes P0 #3).
 26. Production privacy/consent, data export & deletion guarantees; push notifications.
 
-### Phase B — Community, challenges & leaderboards (requires a backend; cannot be done client-only)
+### Phase B — ARCHITECTURE BUILT + PROVEN against a real mock backend (2026-06-25)
+A real, opt-in, local-first cloud layer now exists and is tested end-to-end (`npm run phaseb`, 13/13)
+against a running **mock backend** (`mock-backend/server.js`). What's PROVEN:
+- ✅ **Lossless cross-device sync** — `mergeLedgers` does a CRDT-style **set-union by hash** of the
+  append-only, content-addressed proof ledger → no last-write-wins data loss (fixes the FP-TW-SYNC-UNION
+  class of bug by design). Proofs carry a sortable `at` timestamp for ordering.
+- ✅ **Server-side anti-cheat** — the mock backend re-verifies the SAME B4 hash per proof and rejects
+  forged entries. (`verifyLedger` relaxed to per-entry, content-addressed — CRDT-merge-safe.)
+- ✅ **Opt-in + local-first** — off by default (`state.cloud.url` empty); enable via `?backend=<url>` or
+  System → Cloud. Cloud failure NEVER blocks the offline app (verified).
+- ✅ **Leaderboard + challenges** — honest-metric leaderboard; challenges evaluated by the same rule.
+**Still real Phase B (NOT done — needs production infra, not fakeable client-side):** hosting,
+real auth/persistence (#21), payments (#23), real third-party integrations (#24). The mock proves the
+contract; production is a deploy + a real server implementing the same API.
+
 Vision: compete with others, run challenges. Identity groundwork is already in place — the optional
 **callsign** (local now) becomes the seed for a real account at signup.
 27. **Real account = upgrade the local callsign.** At first sync, claim the callsign as a handle and

@@ -62,6 +62,7 @@ const tests = [
   ["Corrupt main state recovers from last-good backup", testLastGoodRecovery],
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
   ["Proof captures friction intensity level", testFrictionLevelCaptured],
+  ["Ledger merge is a lossless union by hash", testMergeLedgers],
   ["App-created proofs are signed and verify", testLedgerSignedOnCreate],
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
@@ -731,6 +732,19 @@ async function testRecoveryBannerDismiss() {
   assert(!doc().body.innerText.toLowerCase().includes("recovered from backup"), "Banner must disappear after dismiss.");
 }
 
+async function testMergeLedgers() {
+  // Phase-B sync primitive: union by hash, no loss, no dupes, newest-first by timestamp.
+  await loadStateForToday({});
+  const w = win();
+  const mk = (n, at) => { const e = proof({ text: "P" + n }); e.prevHash = "genesis"; e.hash = w.hashEntry(e, "genesis"); e.at = at; return e; };
+  const a = [mk(1, "2026-06-03T00:00:00Z"), mk(2, "2026-06-02T00:00:00Z")];
+  const b = [mk(2, "2026-06-02T00:00:00Z"), mk(3, "2026-06-04T00:00:00Z")]; // P2 is shared
+  const merged = w.mergeLedgers(a, b);
+  assert(merged.length === 3, "Union must dedupe the shared proof (3 unique).");
+  assert(merged[0].text === "P3", "Newest (by timestamp) must sort first.");
+  assert(w.verifyLedger(merged) === true, "Merged ledger must still verify (per-entry).");
+}
+
 async function testFrictionLevelCaptured() {
   // #19: capture a real per-proof friction intensity (not just the AAR-quality proxy).
   await setupToToday();
@@ -822,6 +836,7 @@ async function testFrictionPrime() {
   });
   assertText("Friction prime");
   assertText("showed up");
+  assertText("Try this");
 }
 
 async function testGraduationCard() {

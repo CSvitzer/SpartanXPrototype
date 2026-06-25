@@ -8,11 +8,22 @@ const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
   const browser = await chromium.launch();
   const ctx = await browser.newContext();
   const page = await ctx.newPage();
+  const cdp = await ctx.newCDPSession(page);
   const R = [];
   const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
   const errs = [];
   page.on("pageerror", e => errs.push(e.message));
   await page.goto(BASE, { waitUntil: "load" });
+  await page.waitForTimeout(1200); // let SW register so installability criteria are met
+
+  // 0. Chrome's OWN installability engine (the real criteria a Chrome/Android device uses to offer
+  // install) via CDP. Empty installabilityErrors + no manifest errors == Chrome would install it.
+  let installErrors = ["(unavailable)"];
+  try { installErrors = (await cdp.send("Page.getInstallabilityErrors")).installabilityErrors || []; } catch (e) { installErrors = ["CDP err: " + e.message]; }
+  ok("Chrome installability engine: no errors (device would install)", Array.isArray(installErrors) && installErrors.length === 0, JSON.stringify(installErrors));
+  let manifestErrors = ["(unavailable)"];
+  try { manifestErrors = (await cdp.send("Page.getAppManifest")).errors || []; } catch (e) { manifestErrors = ["CDP err: " + e.message]; }
+  ok("Chrome manifest parser: no errors", Array.isArray(manifestErrors) && manifestErrors.length === 0, JSON.stringify(manifestErrors));
 
   // 1. Manifest is valid + has the installability fields.
   const manifest = await page.evaluate(async () => {
