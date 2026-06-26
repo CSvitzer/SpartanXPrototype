@@ -52,10 +52,13 @@ PWA, localStorage-only, optional opt-in cloud. Single render model: every action
   MOVES." with weakest signal + top friction + claim evidence; **Hold the Standard** ack.
 
 ## Modules (12)  — shots 40–43
-- Nav list + active module panel. **Simulated modules honestly labeled** (`41–43`): Device Signals,
-  Human Review, Benchmarks, Team Standards carry a **"simulated" chip**; header note: "Modules marked
-  'simulated' demonstrate Phase-B features with mock data — no real device, reviewer, or team is
-  connected yet." Locked modules show "Foundation Confirmed required". Guide is rule-based real support.
+- Nav list + active module panel. **Phase-B modules are honest "preview"s** (`41–43`): Device Signals,
+  Human Review, Benchmarks, Team Standards carry a **"preview" chip**; each module body opens with
+  "Preview · sample data" AND a one-line statement of the value it adds toward becoming your best
+  (e.g. Signals → "real sleep/strain auto-fills readiness"). **Team Standards is explicitly flagged as a
+  different audience** ("For coaches & teams — not your personal practice"), not core to individual
+  growth. Header note explains the preview convention. Locked modules show "Foundation Confirmed
+  required". Guide is rule-based real support.
 
 ## System  — shots 50–53
 - **Profile** (callsign), **Safety** (toggle flags any time; crisis/self-punishment/restriction force

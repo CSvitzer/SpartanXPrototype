@@ -1795,7 +1795,7 @@ function renderModulesTab() {
         <div class="view-title">
           <p class="kicker">Full Prototype Modules</p>
           <h1>All product ideas are available.</h1>
-          <p class="muted small">Modules marked “simulated” demonstrate Phase-B features with mock data — no real device, reviewer, or team is connected yet. Your readiness uses only your manual check-ins.</p>
+          <p class="muted small">Modules marked “preview” show how a Phase-B feature will work, using sample data — nothing real is connected yet, and your readiness uses only your manual check-ins. Each preview states the value it will add so you can see where it earns its place.</p>
         </div>
         <span class="status-chip bronze">${MODULES.length} Modules</span>
       </div>
@@ -1807,7 +1807,7 @@ function renderModulesTab() {
               const locked = item.locked && !state.recruitQualified;
               return `
               <button data-action="set-module" data-module="${item.id}" aria-pressed="${active === item.id}">
-                <strong>${escapeHtml(item.label)}${item.simulated ? ` <span class="status-chip">simulated</span>` : ""}</strong>
+                <strong>${escapeHtml(item.label)}${item.simulated ? ` <span class="status-chip">preview</span>` : ""}</strong>
                 <span>${locked ? "Locked — Foundation Confirmed required" : escapeHtml(item.source)}</span>
               </button>`;
             }).join("")}
@@ -2012,8 +2012,9 @@ function renderSignalsModule() {
   const signals = state.modules.signals;
   return `
     <div class="panel">
-      <p class="kicker">Device Signals</p>
-      <h2>Simulated wearable inputs for readiness.</h2>
+      <p class="kicker">Device Signals · preview</p>
+      <h2>Readiness from your wearable.</h2>
+      <p class="muted small">Preview · sample data. Connect a watch and your real sleep &amp; strain auto-fill the daily readiness check — so the command (press / recover) reflects actual recovery, not just how you feel. Until then, your manual check-in is what counts.</p>
       <div class="metric-grid">
         <div class="metric"><span>Status</span><strong>${signals.connected ? "Connected" : "Not connected"}</strong></div>
         <div class="metric"><span>Sleep Score</span><strong>${signals.sleepScore}</strong></div>
@@ -2031,8 +2032,9 @@ function renderHumanReviewModule() {
   const review = state.modules.review;
   return `
     <div class="panel">
-      <p class="kicker">Human Review</p>
-      <h2>Submit a proof pattern for external review.</h2>
+      <p class="kicker">Human Review · preview</p>
+      <h2>Outside eyes on your proof.</h2>
+      <p class="muted small">Preview · sample data. A coach or trusted peer reviews your proof patterns and challenges your reflections — the outside accountability you can't give yourself. The feedback below is a sample of what a reviewer would return.</p>
       <div class="field">
         <label for="reviewNote">Review note</label>
         <textarea id="reviewNote" data-input="module" data-module="review" data-key="note" placeholder="What should be reviewed?">${escapeHtml(review.note)}</textarea>
@@ -2051,8 +2053,9 @@ function renderBenchmarksModule() {
   const benchmarks = state.modules.benchmarks;
   return `
     <div class="panel">
-      <p class="kicker">Benchmarks</p>
-      <h2>Compare against standards, not social status.</h2>
+      <p class="kicker">Benchmarks · preview</p>
+      <h2>Measure against the standard, not other people.</h2>
+      <p class="muted small">Preview · sample data. Your band will be computed from your own accumulated proof — an honest read on whether you're actually at the standard, never a social ranking. The slider below is a placeholder for that real, earned score.</p>
       <div class="metric-grid">
         <div class="metric"><span>Standard</span><strong>${escapeHtml(benchmarks.standard)}</strong></div>
         <div class="metric"><span>Private Score</span><strong>${benchmarks.privateScore}</strong></div>
@@ -2130,8 +2133,9 @@ function renderTeamStandardsModule() {
   const teams = state.modules.teams;
   return `
     <div class="panel">
-      <p class="kicker">Team Standards</p>
-      <h2>Aggregate reliability without exposing private proof.</h2>
+      <p class="kicker">Team Standards · preview</p>
+      <h2>For coaches &amp; teams — not your personal practice.</h2>
+      <p class="muted small">Preview · sample data, and a <strong>different audience</strong>: this is a Phase-B view for someone holding a <em>group</em> to standard (each person's individual proof stays private). It isn't part of becoming your own best — kept here only to show the roadmap.</p>
       <div class="metric-grid">
         <div class="metric"><span>Members</span><strong>${teams.members}</strong></div>
         <div class="metric"><span>Reflection Rate</span><strong>${teams.reflectionRate}%</strong></div>

@@ -807,9 +807,10 @@ async function testNotificationsHonest() {
 }
 
 async function testSimulatedModulesLabeled() {
-  // Honesty: modules backed by mock data are visibly marked "simulated".
-  await loadStateForToday({ tab: "modules" });
-  assertText("simulated");
+  // Honesty: modules backed by mock data are marked "preview" and state the value they'll add.
+  await loadStateForToday({ tab: "modules", modules: { active: "signals" } });
+  assertText("preview");
+  assertText("sample data");
 }
 
 async function testMergeLedgers() {
