@@ -63,6 +63,9 @@ const tests = [
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
   ["Proof captures friction intensity level", testFrictionLevelCaptured],
   ["Ledger merge is a lossless union by hash", testMergeLedgers],
+  ["Safety flag hides the competitive cloud surface", testCloudPanelProtected],
+  ["Challenge submission is blocked during recovery", testChallengeGatedRecovery],
+  ["Simulated modules are labeled honestly", testSimulatedModulesLabeled],
   ["App-created proofs are signed and verify", testLedgerSignedOnCreate],
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
@@ -730,6 +733,33 @@ async function testRecoveryBannerDismiss() {
   const s = getState();
   assert(s.restoredFromBackup === false, "Dismiss must clear the recovery flag.");
   assert(!doc().body.innerText.toLowerCase().includes("recovered from backup"), "Banner must disappear after dismiss.");
+}
+
+async function testCloudPanelProtected() {
+  // Vulnerable-user protection: a critical safety flag hides the leaderboard/challenges (no comparison loop).
+  await loadStateForToday({
+    tab: "system", safetyFlags: ["crisis"],
+    cloud: { url: "http://mock.invalid", handle: "Me", token: "t", status: "", leaderboard: [{ handle: "Other", metric: 9 }], challenges: [{ id: "c1", title: "7 active days" }] },
+  });
+  assertText("comparison is paused");
+  assert(!doc().body.innerText.toLowerCase().includes("not a verdict"), "Leaderboard must be hidden under a safety flag.");
+}
+
+async function testChallengeGatedRecovery() {
+  // Safety over competition: a challenge submission is blocked while readiness is RECOVER (severe pain).
+  await loadStateForToday({
+    tab: "system",
+    readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 },
+    cloud: { url: "http://mock.invalid", handle: "Me", token: "t", status: "" },
+  });
+  await win().cloudCompleteChallenge("active-7");
+  assert((getState().cloud.status || "").toLowerCase().includes("pause"), "Challenge must be blocked during recovery.");
+}
+
+async function testSimulatedModulesLabeled() {
+  // Honesty: modules backed by mock data are visibly marked "simulated".
+  await loadStateForToday({ tab: "modules" });
+  assertText("simulated");
 }
 
 async function testMergeLedgers() {

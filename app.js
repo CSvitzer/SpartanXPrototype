@@ -161,11 +161,11 @@ const MODULES = [
   { id: "principles", label: "Principles", source: "Stoic practice library" },
   { id: "pressure", label: "Pressure Practice", source: "Controlled integrated load", locked: true },
   { id: "advanced", label: "Advanced Standards", source: "Higher standard gates", locked: true },
-  { id: "signals", label: "Device Signals", source: "Readiness inputs" },
-  { id: "review", label: "Human Review", source: "External proof review" },
-  { id: "benchmarks", label: "Benchmarks", source: "Private standard comparison", locked: true },
+  { id: "signals", label: "Device Signals", source: "Readiness inputs", simulated: true },
+  { id: "review", label: "Human Review", source: "External proof review", simulated: true },
+  { id: "benchmarks", label: "Benchmarks", source: "Private standard comparison", locked: true, simulated: true },
   { id: "history", label: "History Import", source: "CSV baseline" },
-  { id: "teams", label: "Team Standards", source: "Aggregate reliability", locked: true },
+  { id: "teams", label: "Team Standards", source: "Aggregate reliability", locked: true, simulated: true },
   { id: "cognitive", label: "Cognitive Load", source: "Attention under load" },
 ];
 
@@ -570,6 +570,16 @@ function restoreFocus(key) {
   for (const el of app.querySelectorAll(`[data-action="${key.action}"]`)) {
     if (Object.keys(key.data).every(k => el.dataset[k] === key.data[k])) { el.focus(); return; }
   }
+}
+
+// Coalesce render bursts (e.g. a slider drag firing many input events) into one render per frame.
+// State is updated synchronously by the caller; only the expensive DOM rebuild is deferred + deduped.
+let _renderQueued = false;
+function scheduleRender() {
+  if (_renderQueued) return;
+  _renderQueued = true;
+  const raf = (typeof requestAnimationFrame === "function") ? requestAnimationFrame : (cb => setTimeout(cb, 16));
+  raf(() => { _renderQueued = false; render(); });
 }
 
 function render() {
@@ -1258,7 +1268,7 @@ function renderReadinessControls() {
 function slider(key, label, value) {
   return `
     <label class="slider-field">
-      <span class="slider-row"><span class="label">${label}</span><strong>${value}</strong></span>
+      <span class="slider-row"><span class="label">${label}</span><strong data-slider-value>${value}</strong></span>
       <input type="range" min="1" max="5" value="${value}" data-input="readiness" data-key="${key}">
     </label>
   `;
@@ -1672,16 +1682,22 @@ function renderCloudPanel() {
         <p class="muted small">Cloud sync is <strong>off</strong> — Spartan X is local-only by default. Phase B (verified cross-device sync, leaderboards &amp; challenges) connects here. Your proof ledger merges losslessly across devices and is re-verified server-side. Enable with <code>?backend=&lt;url&gt;</code>.</p>
       </div>`;
   }
+  // Protected mode: while a critical safety flag is active, sync stays on (your data) but the
+  // competitive surface (leaderboard + challenges) is hidden — no comparison loop when vulnerable.
+  const protectedMode = hasCriticalSafetyFlag();
   const board = (c.leaderboard || []).slice(0, 10);
   const challenges = c.challenges || [];
+  const community = protectedMode
+    ? `<p class="muted small">Community comparison is paused while a safety flag is active — your sync still works. The only standard that matters right now is taking care of yourself.</p>`
+    : `${board.length ? `<p class="label">Community — honest, consistent practice (not a verdict)</p><div class="report-rows">${board.map((u, i) => `<p><span>${i + 1}. ${escapeHtml(u.handle)}</span><span>${escapeHtml(String(u.metric))} proven</span></p>`).join("")}</div><p class="muted small">Ranked by consistency × honest reflection — not raw volume. It's company, not your verdict.</p>` : ""}
+       ${challenges.length ? `<p class="label">Challenges</p><div class="stack">${challenges.map(ch => `<div class="line"><span>${escapeHtml(ch.title)}</span><button class="btn ghost" data-action="cloud-complete-challenge" data-id="${escapeAttr(ch.id)}">Submit</button></div>`).join("")}</div>` : ""}`;
   return `
     <div class="panel">
       <h2>Cloud (beta)</h2>
       <p class="muted small">${c.status ? escapeHtml(c.status) : "Verified cross-device sync. Opt-in. Your data stays local-first."}</p>
       <div class="actions"><button class="btn steel" data-action="cloud-sync">Sync now</button></div>
       ${c.handle ? `<p class="muted small">Handle: <strong>${escapeHtml(c.handle)}</strong>${c.lastSync ? " · last sync " + escapeHtml(c.lastSync.slice(0, 16).replace("T", " ")) : ""}</p>` : ""}
-      ${board.length ? `<p class="label">Leaderboard (active days)</p><div class="report-rows">${board.map((u, i) => `<p><span>${i + 1}. ${escapeHtml(u.handle)}</span><span>${escapeHtml(String(u.metric))}</span></p>`).join("")}</div>` : ""}
-      ${challenges.length ? `<p class="label">Challenges</p><div class="stack">${challenges.map(ch => `<div class="line"><span>${escapeHtml(ch.title)}</span><button class="btn ghost" data-action="cloud-complete-challenge" data-id="${escapeAttr(ch.id)}">Submit</button></div>`).join("")}</div>` : ""}
+      ${community}
     </div>`;
 }
 
@@ -1775,6 +1791,7 @@ function renderModulesTab() {
         <div class="view-title">
           <p class="kicker">Full Prototype Modules</p>
           <h1>All product ideas are available.</h1>
+          <p class="muted small">Modules marked “simulated” demonstrate Phase-B features with mock data — no real device, reviewer, or team is connected yet.</p>
         </div>
         <span class="status-chip bronze">${MODULES.length} Modules</span>
       </div>
@@ -1786,7 +1803,7 @@ function renderModulesTab() {
               const locked = item.locked && !state.recruitQualified;
               return `
               <button data-action="set-module" data-module="${item.id}" aria-pressed="${active === item.id}">
-                <strong>${escapeHtml(item.label)}</strong>
+                <strong>${escapeHtml(item.label)}${item.simulated ? ` <span class="status-chip">simulated</span>` : ""}</strong>
                 <span>${locked ? "Locked — Foundation Confirmed required" : escapeHtml(item.source)}</span>
               </button>`;
             }).join("")}
@@ -1950,7 +1967,7 @@ function renderPressureModule() {
         `).join("")}
       </div>
       <label class="slider-field">
-        <span class="slider-row"><span class="label">Load</span><strong>${pressure.load}</strong></span>
+        <span class="slider-row"><span class="label">Load</span><strong data-slider-value>${pressure.load}</strong></span>
         <input type="range" min="1" max="5" value="${pressure.load}" data-input="module-number" data-module="pressure" data-key="load">
       </label>
       <div class="actions">
@@ -2038,7 +2055,7 @@ function renderBenchmarksModule() {
         <div class="metric"><span>Band</span><strong>${escapeHtml(benchmarks.band)}</strong></div>
       </div>
       <label class="slider-field">
-        <span class="slider-row"><span class="label">Private benchmark score</span><strong>${benchmarks.privateScore}</strong></span>
+        <span class="slider-row"><span class="label">Private benchmark score</span><strong data-slider-value>${benchmarks.privateScore}</strong></span>
         <input type="range" min="0" max="100" value="${benchmarks.privateScore}" data-input="module-number" data-module="benchmarks" data-key="privateScore">
       </label>
       <div class="actions">
@@ -2411,7 +2428,9 @@ function bindDynamicInputs() {
     input.addEventListener("input", event => {
       state.readiness[event.target.dataset.key] = Number(event.target.value);
       updateStandardsFromReadiness();
-      render();
+      const lbl = event.target.closest(".slider-field")?.querySelector("[data-slider-value]");
+      if (lbl) lbl.textContent = event.target.value; // live value without a full rebuild
+      scheduleRender();                              // coalesce drag bursts into one render/frame
     });
   });
 
@@ -2473,7 +2492,9 @@ function bindDynamicInputs() {
       const module = state.modules[event.target.dataset.module];
       if (!module) return;
       module[event.target.dataset.key] = Number(event.target.value);
-      render();
+      const lbl = event.target.closest(".slider-field")?.querySelector("[data-slider-value]");
+      if (lbl) lbl.textContent = event.target.value; // live value; render coalesced (0–100 slider)
+      scheduleRender();
     });
   });
 
@@ -3276,6 +3297,12 @@ async function cloudSync() {
 
 async function cloudCompleteChallenge(id) {
   if (!cloudConfigured() || !state.cloud.token) return;
+  // Safety over competition: never let chasing a challenge override recovery or a safety restriction.
+  if (hasActivityRestrictingFlag() || computeReadiness(state.readiness).command === "RECOVER") {
+    state.cloud.status = "Challenges pause during recovery or a safety flag — hold the standard first.";
+    render();
+    return;
+  }
   try {
     const r = await cloudCall("/api/challenges/" + encodeURIComponent(id) + "/complete", { method: "POST", body: JSON.stringify({ token: state.cloud.token, snapshot: cloudSnapshot() }) });
     state.cloud.status = r.met ? "Challenge completed ✓" : "Not met yet — keep going.";

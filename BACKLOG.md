@@ -10,6 +10,39 @@ near alpha · **P2** = later / polish / production (Phase B).
 
 ---
 
+## 8-gate feature review (2026-06-26) — outcomes
+
+Ran 8 expert gates (UI, Stoic, Spartan, Trainer, Top-1%, Fitness-product, Security, Performance) over
+every feature; verified each finding in code before acting (most gates ran on haiku — several misreads
+discarded). **Shipped this round** (all verified, tested, pipeline-green):
+- ✅ **Vulnerable-user protection** — `renderCloudPanel` hides the leaderboard + challenges while a
+  critical safety flag is active (sync still works). 5 gates converged on this.
+- ✅ **Safety over competition** — `cloudCompleteChallenge` blocked during RECOVER / activity-restricting
+  flag (can't grind the board through recovery).
+- ✅ **Leaderboard = honesty-weighted + non-verdict framing** — mock `provenScore` = activeDays × (avgQuality/5);
+  copy reframed to "company, not your verdict" (resolves the Stoic dichotomy-of-control tension while
+  keeping the competition the owner asked for).
+- ✅ **Simulated-module honesty** — signals/review/benchmarks/teams carry a "simulated" chip + header note.
+- ✅ **Slider render-storm fix** — `scheduleRender()` rAF-coalesces drag bursts (the 0–100 benchmarks
+  slider was the real storm); state + live value update synchronously so tests are unaffected.
+
+**Discarded after verification:** XSS (all sinks escaped — clean); "harden the mock backend"
+(predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
+real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
+
+**Deferred — engine refinements (need oracle-safe implementation, not yet done):**
+- Beginner pressure-load default + escalation ladder (Trainer).
+- Readiness gate on Continued-Standard domain escalation (Trainer).
+- Chronic single-marker (sleep-debt) overtraining detection (Trainer).
+- Debrief-quality depth (length ≠ depth) + friction-type-gated qualification (Top-1%).
+- Calibration-plateau nudge; friction-resilience leading indicator (Top-1%).
+
+**Phase-B security hardening checklist (for the REAL backend, not the mock):** cryptographically random
+tokens + expiry/refresh; replace fnv1a tamper-evidence with HMAC-SHA256 per-user signatures; rate-limit
+`/api/auth` + `/api/sync`; restrict CORS to the production origin; depth-cap `deepMerge`.
+
+---
+
 ## P0 — Blockers before giving it to a real user
 
 1. ✅ **DONE — Data-loss safeguard (highest end-user risk).** Data & Backup modal now offers (a) a

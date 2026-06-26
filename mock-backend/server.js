@@ -44,8 +44,16 @@ function send(res, code, body) {
   res.end(JSON.stringify(body));
 }
 
+// Honesty-weighted score: consistency (active days) scaled by reflection quality, NOT raw volume.
+// Grinding junk days can't top the board — only consistent + honestly-reflected practice does.
+function provenScore(m) {
+  const days = (m && m.activeDays) || 0;
+  const q = Math.max(0, Math.min(5, (m && m.avgQuality) || 0));
+  return Math.round(days * (q / 5));
+}
+
 function rankOf(token) {
-  const arr = [...users.values()].sort((a, b) => (b.metrics.activeDays || 0) - (a.metrics.activeDays || 0));
+  const arr = [...users.values()].sort((a, b) => provenScore(b.metrics) - provenScore(a.metrics));
   return arr.findIndex(u => u === users.get(token)) + 1;
 }
 
@@ -79,7 +87,7 @@ const server = http.createServer((req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/leaderboard") {
       const leaderboard = [...users.values()]
-        .map(u => ({ handle: u.handle, metric: u.metrics.activeDays || 0 }))
+        .map(u => ({ handle: u.handle, metric: provenScore(u.metrics) }))
         .sort((a, b) => b.metric - a.metric).slice(0, 50);
       return send(res, 200, { leaderboard });
     }
