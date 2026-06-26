@@ -67,6 +67,10 @@ const tests = [
   ["Challenge submission is blocked during recovery", testChallengeGatedRecovery],
   ["Challenges are hidden during recovery", testChallengesHiddenDuringRecovery],
   ["Simulated modules are labeled honestly", testSimulatedModulesLabeled],
+  ["Readiness snapshot upserts once per day", testReadinessSnapshotUpsertPerDay],
+  ["Server proof signature is verified client-side", testServerProofVerification],
+  ["Export strips the cloud token", testExportStripsToken],
+  ["Notifications panel is honest about push", testNotificationsHonest],
   ["App-created proofs are signed and verify", testLedgerSignedOnCreate],
   ["Valid proof chain verifies", testLedgerChainValid],
   ["Edited proof fails integrity check", testLedgerTamperDetected],
@@ -768,6 +772,40 @@ async function testChallengesHiddenDuringRecovery() {
   assert(!doc().body.innerText.includes("7 active days"), "Challenge entries must be hidden during recovery.");
 }
 
+async function testReadinessSnapshotUpsertPerDay() {
+  // Overtraining detector must receive daily check-ins; same-day re-checks upsert, not stack.
+  await loadStateForToday({ readinessHistory: [] });
+  const w = win();
+  w.recordReadinessSnapshot();
+  w.recordReadinessSnapshot();
+  w.render(); // persist (normally a render follows the snapshot in the change handler)
+  assert(getState().readinessHistory.length === 1, "Two same-day snapshots must collapse to one.");
+}
+
+async function testServerProofVerification() {
+  // Client must reject a forged server proof on sync (mirror of the server anti-cheat).
+  await loadStateForToday({});
+  const w = win();
+  const good = proof({ text: "ok" });
+  good.prevHash = "genesis";
+  good.hash = w.hashEntry(good, "genesis");
+  assert(w.proofSignatureValid(good) === true, "A valid signature is accepted.");
+  good.text = "TAMPERED";
+  assert(w.proofSignatureValid(good) === false, "Tampered content is rejected.");
+}
+
+async function testExportStripsToken() {
+  // A shared backup must not leak the cloud sync token.
+  await loadStateForToday({ cloud: { url: "u", handle: "h", token: "SECRET-TOKEN-XYZ" } });
+  assert(!win().exportPayload().includes("SECRET-TOKEN-XYZ"), "Export must strip the cloud token.");
+}
+
+async function testNotificationsHonest() {
+  // Honesty: the reminder panel must not imply a working push feature that doesn't exist.
+  await loadStateForToday({ tab: "system" });
+  assertText("does not send push reminders yet");
+}
+
 async function testSimulatedModulesLabeled() {
   // Honesty: modules backed by mock data are visibly marked "simulated".
   await loadStateForToday({ tab: "modules" });
@@ -888,6 +926,8 @@ async function testGraduationCard() {
     foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true },
   });
   assertText("Seven days proven");
+  assertText("never finishes moving"); // Stoic: no "mastery" arrival-claim
+  assert(!doc().body.innerText.toLowerCase().includes("is mastery"), "No arrival/identity claim.");
   await clickAction("graduate-ack");
   assert(getState().foundationGraduated === true, "Ack must dismiss the graduation card.");
   assert(!doc().body.innerText.toLowerCase().includes("seven days proven"), "Card must disappear after ack.");

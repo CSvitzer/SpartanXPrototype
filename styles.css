@@ -834,6 +834,14 @@ button:disabled {
   accent-color: var(--bronze);
 }
 
+/* Visible keyboard focus everywhere — the dark theme's UA focus ring is near-invisible, and axe
+   can't detect a missing focus indicator (WCAG 2.4.7). --amber is 8:1 on the obsidian background. */
+:where(.btn, .tabbar button, .pain-options button, .progress-line button, .choice-card,
+  .status-chip, .module-list button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
 .pain-options {
   display: grid;
   /* 2×2 everywhere: a 4-across row clips "SEVERE" in the narrow desktop sidebar column. */

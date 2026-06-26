@@ -1602,7 +1602,7 @@ function renderGraduationCard() {
       <p class="kicker">Foundation Confirmed</p>
       <h2>Seven days proven. The standard now moves.</h2>
       <p class="muted small">Weakest signal: <strong>${escapeHtml(domain)}</strong>.${dominant ? ` Top friction: <strong>${escapeHtml(dominant.name)}</strong> (${dominant.count}×).` : ""} ${claimLine}</p>
-      <p class="muted small">From here the standard rises only through reflected proof and reflection quality. Proof #1 is evidence; proof #3 is mastery.</p>
+      <p class="muted small">From here the standard rises only through reflected proof and reflection quality. Proof #1 is evidence; proof #3 is a pattern. The standard never finishes moving.</p>
       <div class="actions"><button class="btn primary" data-action="graduate-ack">Hold the standard</button></div>
     </div>
   `;
@@ -1746,11 +1746,12 @@ function renderSystemTab() {
             </label>
           </div>
           <div class="panel">
-            <h2>Notifications</h2>
+            <h2>Reflection Window</h2>
             <div class="field">
-              <label for="reminderWindow">Reflection window</label>
+              <label for="reminderWindow">Your intended window</label>
               <input id="reminderWindow" data-input="settings" data-key="reminderWindow" value="${escapeAttr(state.settings.reminderWindow)}">
             </div>
+            <p class="muted small">This records the window you hold yourself to. Spartan X does not send push reminders yet — automatic notifications arrive with the Phase-B backend.</p>
           </div>
           <div class="panel">
             <h2>Safety Notes</h2>
@@ -2301,7 +2302,7 @@ function renderExportModal() {
           </div>` : ""}
         <details class="export-details">
           <summary>Show raw data</summary>
-          <textarea readonly class="export-box">${escapeHtml(JSON.stringify(state, null, 2))}</textarea>
+          <textarea readonly class="export-box">${escapeHtml(exportPayload())}</textarea>
         </details>
         <div class="actions">
           <button class="btn ghost" data-action="close-modal">Close</button>
@@ -2311,10 +2312,18 @@ function renderExportModal() {
   `;
 }
 
+// Serialize state for export with the cloud credential stripped — a shared backup must not leak the
+// sync token (the rest is the user's own local data).
+function exportPayload() {
+  const safe = JSON.parse(JSON.stringify(state));
+  if (safe.cloud) safe.cloud.token = "";
+  return JSON.stringify(safe, null, 2);
+}
+
 // Download the current state as a timestamped JSON backup the user controls (local-only data export).
 function downloadBackup() {
   try {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const blob = new Blob([exportPayload()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -2435,6 +2444,9 @@ function bindDynamicInputs() {
       if (lbl) lbl.textContent = event.target.value; // live value without a full rebuild
       scheduleRender();                              // coalesce drag bursts into one render/frame
     });
+    // On commit (release), record today's readiness so overtraining detection sees daily check-ins,
+    // not only post-debrief snapshots. Upsert-by-day keeps it to one entry per day.
+    input.addEventListener("change", () => { recordReadinessSnapshot(); render(); });
   });
 
   document.querySelectorAll("[data-input='debrief']").forEach(input => {
@@ -3242,12 +3254,21 @@ function applyProof(entry) {
 // Phase-B sync primitive (local-first, CRDT-style): the proof ledger is an append-only,
 // content-addressed (B4 hash) log, so merging two devices is a lossless SET UNION by hash — no
 // last-write-wins data loss (cf. FP-TW-SYNC-UNION). Newest-first by timestamp; capped like applyProof.
+function ledgerKey(e) {
+  return e && (e.hash || [e.date, e.text, e.domain, e.quality, e.decision].join("|"));
+}
+
+// A server-returned proof is trusted only if its B4 signature matches its content (mirror of the
+// server's own anti-cheat) — so a hostile/compromised/MITM backend can't inject forged entries on sync.
+function proofSignatureValid(e) {
+  return !!e && typeof e.hash === "string" && hashEntry(e, e.prevHash) === e.hash;
+}
+
 function mergeLedgers(a, b) {
   const seen = new Map();
-  const keyOf = e => (e && (e.hash || [e.date, e.text, e.domain, e.quality, e.decision].join("|")));
   for (const e of [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])]) {
     if (!e) continue;
-    const k = keyOf(e);
+    const k = ledgerKey(e);
     if (!seen.has(k)) seen.set(k, e);
   }
   return [...seen.values()]
@@ -3285,7 +3306,17 @@ async function cloudSync() {
     }
     // Server union-merges + re-verifies the hash chain (anti-cheat); merge its result back losslessly.
     const s = await cloudCall("/api/sync", { method: "POST", body: JSON.stringify({ token: state.cloud.token, snapshot: cloudSnapshot() }) });
-    if (Array.isArray(s.ledger)) state.proofLedger = mergeLedgers(state.proofLedger, s.ledger);
+    if (Array.isArray(s.ledger)) {
+      // Don't trust the backend's response: accept only signature-valid entries the client doesn't
+      // already hold, and only fill the remaining room — server data can never evict local proofs.
+      const localKeys = new Set(state.proofLedger.map(ledgerKey));
+      const additions = s.ledger
+        .filter(proofSignatureValid)
+        .filter(e => !localKeys.has(ledgerKey(e)))
+        .sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+      const room = Math.max(0, 200 - state.proofLedger.length);
+      state.proofLedger = mergeLedgers(state.proofLedger, additions.slice(0, room));
+    }
     const lb = await cloudCall("/api/leaderboard");
     const ch = await cloudCall("/api/challenges");
     state.cloud.leaderboard = lb.leaderboard || [];
@@ -4211,6 +4242,8 @@ function hasActivityRestrictingFlag() {
 }
 
 function recordReadinessSnapshot() {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
   const snapshot = {
     sleep: state.readiness.sleep,
     energy: state.readiness.energy,
@@ -4218,9 +4251,16 @@ function recordReadinessSnapshot() {
     pain: state.readiness.pain,
     stress: state.readiness.stress,
     emotional: state.readiness.emotional,
-    at: new Date().toISOString(),
+    at: now.toISOString(),
+    day,
   };
-  state.readinessHistory.push(snapshot);
+  // Upsert one snapshot per calendar day: a same-day re-check (or a daily slider commit) replaces
+  // today's entry instead of stacking. This lets the daily check-in feed overtraining detection
+  // without a drag-burst polluting history, and makes the PRESS-stability guard compare prior DAYS.
+  if (!Array.isArray(state.readinessHistory)) state.readinessHistory = [];
+  const last = state.readinessHistory[state.readinessHistory.length - 1];
+  if (last && last.day === day) state.readinessHistory[state.readinessHistory.length - 1] = snapshot;
+  else state.readinessHistory.push(snapshot);
   state.readinessHistory = state.readinessHistory.slice(-7);
 }
 

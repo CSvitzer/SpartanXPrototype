@@ -30,6 +30,27 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## OPUS gate rerun (2026-06-26) — gates are validators → run sonnet/opus, never haiku
+
+Reran the 7 experience gates + security on **opus** (the prior pass was haiku-forced and noisy). Opus
+closed every haiku false alarm with computed evidence (e.g. --ash = 7.10:1, passes AA) and found real,
+code-grounded issues. **Shipped (verified + tested):**
+- ✅ **Overtraining detector starvation [P0 safety]** — `recordReadinessSnapshot()` ran only in
+  `submitDebrief`, so daily readiness check-ins never fed `hasOvertrainingRisk` (needs ≥3 history). Now
+  the readiness slider `change` records an **upsert-by-day** snapshot; PRESS-stability now compares prior
+  DAYS. Oracle-safe (clean-state sweep has empty history).
+- ✅ **Client verifies server ledger [security]** — `cloudSync` filtered server entries through
+  `proofSignatureValid` (mirror of server anti-cheat) + fills only remaining room → a hostile `?backend=`
+  can't inject forged proofs or evict local ones.
+- ✅ **`:focus-visible` everywhere [a11y]** — dark-theme had no visible keyboard focus (axe can't detect
+  its absence; WCAG 2.4.7). One CSS rule, --amber 8:1.
+- ✅ **Stoic: "proof #3 is mastery" → "a pattern; the standard never finishes moving"** (kills the
+  arrival/identity claim that contradicted the app's no-verdict spine).
+- ✅ **Export strips `cloud.token`** (a shared backup must not leak the sync credential).
+- ✅ **Notifications panel made honest** ("does not send push reminders yet — Phase B"); retitled
+  "Reflection Window" (it implied a working push feature).
+**Discarded:** all haiku false alarms (--ash contrast, slider labels, pain-modal buttons). Tests: qa 82→86.
+
 ## Visual gate pass (2026-06-26) — screenshots + verified spec
 
 Built `e2e/shots.js` (60 screenshots, phone+desktop, every feature/state → `e2e/shots/`, gitignored)
@@ -59,6 +80,21 @@ Tests: qa 81→82 (+challenges-hidden-during-recovery). Regenerate shots with `c
 - RECOVER "practice blueprint" (3 zero-intensity recovery targets) instead of a lockout (Top-1%).
 - Qualification velocity badges (on-pace / behind) on Today progress (Top-1%).
 - Graduation 1-sentence commitment input before ack (Top-1%).
+- **Progressive overload on the minimum** — the practice `minimum` is constant across ladder levels;
+  derive it from the domain's level so the floor rises with the standard (Top-1%, opus — strong).
+- **Pre-practice prediction → calibration loop** — call your result before practice, compare at debrief,
+  surface a calibration score; upgrades `scoreDebrief` from presence-check to honest self-assessment
+  (Top-1%, opus — net-new, touches the oracle-swept scoreDebrief, needs care).
+- Report-Pain mid-practice floor: a dedicated in-session pain report from "none" only reaches moderate
+  (SCALE), not RECOVER — consider routing it through the injury scan (Trainer, opus — judgment call).
+- Default `standards.will` is "Under Review" (a status that elsewhere means a safety/integrity hold) at
+  cold start — consider "Untested"/"Forming" so it's only ever earned (Spartan, opus — verify no oracle/
+  test ripple from the DEFAULT_STATE change).
+- Debrief stepper: on mobile the 6 full-width jump-chips push the input below the fold — consider a
+  compact "step N of 6" progress bar + jump disclosure (UI, opus).
+- Share a verified proof / graduation via `navigator.share` (text-only, honest; the B4 hash makes a
+  shared proof defensible) — the only organic-acquisition surface (Fitness, opus).
+- Real opt-in local reminders (Notification API + SW); full push is Phase B (Fitness, opus).
 
 **Phase-B security hardening checklist (for the REAL backend, not the mock):** cryptographically random
 tokens + expiry/refresh; replace fnv1a tamper-evidence with HMAC-SHA256 per-user signatures; rate-limit
