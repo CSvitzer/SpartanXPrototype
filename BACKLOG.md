@@ -30,6 +30,21 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Engine fix (2026-06-26) — progressive overload (Moving Standard now moves the WORK)
+
+The post-Foundation "Continued Standard" used a FIXED generic prescription ("Minimum practice in
+{domain}") regardless of the domain's level — so the Moving Standard moved only the *label*, not the
+work. **Fixed:** `OVERLOAD_LADDER` (5 rungs) + `overloadFor(domain)` scale standard/minimum/objective
+with `levelIndex(state.standards[domain])`; each rung resolves to a **concrete base practice**
+(`DOMAIN_BASE_PRACTICE`) so it's executable (e.g. "2 min controlled movement — 1.5× (more reps/minutes)").
+Also: DEFAULT `standards.will` "Under Review" → "Untested" ("Under Review" is an EARNED hold, not a
+cold-start default — was faint shaming).
+**Oracle-safe** (choosePracticeAssignment isn't oracle-swept; tests assert name/domain, not the
+prescription text → 12,596/0 preserved). Approved by **3 opus gates** (safety / top-1% / ethos):
+overload is the last branch so it can't override recovery; high rungs are earned + auto-demote on
+failure (Regressed → base rung); language earned/internal-locus. qa 87. Remaining follow-up: per-domain
+base-rep *numbers* (the base is now concrete text; a numeric table would let "1.5×" compute exactly).
+
 ## OPUS gate rerun (2026-06-26) — gates are validators → run sonnet/opus, never haiku
 
 Reran the 7 experience gates + security on **opus** (the prior pass was haiku-forced and noisy). Opus
@@ -80,8 +95,8 @@ Tests: qa 81→82 (+challenges-hidden-during-recovery). Regenerate shots with `c
 - RECOVER "practice blueprint" (3 zero-intensity recovery targets) instead of a lockout (Top-1%).
 - Qualification velocity badges (on-pace / behind) on Today progress (Top-1%).
 - Graduation 1-sentence commitment input before ack (Top-1%).
-- **Progressive overload on the minimum** — the practice `minimum` is constant across ladder levels;
-  derive it from the domain's level so the floor rises with the standard (Top-1%, opus — strong).
+- ✅ **DONE — Progressive overload on the minimum** (2026-06-26): floor now rises with the level via
+  `OVERLOAD_LADDER`/`overloadFor` + concrete `DOMAIN_BASE_PRACTICE`. Follow-up: numeric base-rep table.
 - **Pre-practice prediction → calibration loop** — call your result before practice, compare at debrief,
   surface a calibration score; upgrades `scoreDebrief` from presence-check to honest self-assessment
   (Top-1%, opus — net-new, touches the oracle-swept scoreDebrief, needs care).

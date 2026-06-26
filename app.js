@@ -372,7 +372,7 @@ const DEFAULT_STATE = {
   standards: {
     body: "Untested",
     mind: "Untested",
-    will: "Under Review",
+    will: "Untested", // cold start is "Untested", not "Under Review" — the latter is an EARNED hold, not a default
     execution: "Forming",
     readiness: "Unknown",
     integrity: "Forming",
@@ -3375,6 +3375,30 @@ function recordModuleProof({
   });
 }
 
+// Progressive overload: the prescribed floor RISES with the domain's level, so the Moving Standard
+// moves the actual work — not just the label. Clamped; Forming/Regressed/Under Review → the base rung.
+const OVERLOAD_LADDER = [
+  { tag: "Establish the rep", standard: "Establish the rep — form over volume.", scale: "once, clean." },
+  { tag: "Hold the standard", standard: "Hold the standard — no scaling.", scale: "the full amount, no scaling." },
+  { tag: "Raise the floor", standard: "Raise the floor — beat last time.", scale: "1.5× (more reps or minutes)." },
+  { tag: "Sustain under fatigue", standard: "Sustain the higher floor under fatigue.", scale: "back-to-back, quality held." },
+  { tag: "Compress", standard: "Compress — same standard, harder conditions.", scale: "in less time or at higher difficulty." },
+];
+// Concrete base practice per domain so the overload scaling resolves to something executable today
+// (e.g. "2 min controlled movement — 1.5× (more reps or minutes)") rather than an abstract "base minimum".
+const DOMAIN_BASE_PRACTICE = {
+  body: "2 min controlled movement",
+  mind: "3 min single-target focus",
+  will: "5 min started before the feeling",
+  execution: "one protected practice window",
+};
+function overloadFor(domain) {
+  const lvl = Math.max(0, Math.min(levelIndex(state.standards[domain]), OVERLOAD_LADDER.length - 1));
+  const rung = OVERLOAD_LADDER[lvl];
+  const base = DOMAIN_BASE_PRACTICE[domain] || "the base practice";
+  return { ...rung, minimum: `${base} — ${rung.scale}` };
+}
+
 function choosePracticeAssignment(day) {
   if (["completed", "scaled", "failed", "pain"].includes(state.mission.status)) {
     return {
@@ -3444,15 +3468,17 @@ function choosePracticeAssignment(day) {
 
   if (state.foundation.completedDays.length >= FOUNDATION_DAYS.length) {
     const domain = weakestDomain();
+    const o = overloadFor(domain);
+    const level = state.standards[domain];
     return {
       ...day,
       name: "Continued Standard",
       domain,
-      objective: `Take one practice in your weakest domain: ${domain}.`,
+      objective: `Train your weakest domain (${domain}) — now at ${level}. ${o.tag}.`,
       knownThreat: "Avoiding the weak domain",
-      standard: "Train the gap, not the strength.",
-      minimum: `Minimum practice in ${domain}.`,
-      reason: `Foundation complete. Weakest domain (${domain}) is prioritized.`,
+      standard: o.standard,
+      minimum: o.minimum,
+      reason: `Foundation complete. ${domain} is at ${level} — the floor rises with the level, not just the label.`,
       targeted: true,
     };
   }

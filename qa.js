@@ -40,6 +40,7 @@ const tests = [
   ["Weakest domain identified from standards", testWeakestDomain],
   ["RECOVER readiness assigns recovery practice", testRecoverAssignsRecovery],
   ["Post-Foundation targets weakest domain", testWeakestDomainPostFoundation],
+  ["Moving Standard applies progressive overload", testProgressiveOverload],
   ["Reflection stepper gates submit to last step", testDebriefStepper],
   ["Reflection stepper chips jump to a step", testDebriefJump],
   ["Re-entry banner after absence", testReentryAfterAbsence],
@@ -575,6 +576,19 @@ async function testRecoverAssignsRecovery() {
   await loadStateForToday({ readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 } });
   const assignment = win().choosePracticeAssignment({ day: 1, deadline: "21:30" });
   assert(assignment.domain === "readiness" && assignment.name === "Recovery Practice", "RECOVER readiness must assign a recovery-safe practice.");
+}
+
+async function testProgressiveOverload() {
+  // Moving Standard must move the WORK: the Continued-Standard prescription scales with the domain level.
+  const fc = { foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true } };
+  await loadStateForToday({ ...fc, standards: { body: "Elevated", mind: "Elevated", will: "Elevated", execution: "Tested", readiness: "HOLD", integrity: "Forming" } });
+  const low = win().choosePracticeAssignment({ day: 8, deadline: "21:30" });
+  await loadStateForToday({ ...fc, standards: { body: "Elevated", mind: "Elevated", will: "Elevated", execution: "Baseline", readiness: "HOLD", integrity: "Forming" } });
+  const high = win().choosePracticeAssignment({ day: 8, deadline: "21:30" });
+  assert(low.domain === "execution" && high.domain === "execution", "Both must target the weakest domain.");
+  assert(low.minimum !== high.minimum, "The prescribed minimum must scale with the domain level.");
+  assert(/no scaling/i.test(low.minimum), "Tested → full minimum, no scaling.");
+  assert(/back-to-back/i.test(high.minimum), "Baseline → raised minimum, back-to-back.");
 }
 
 async function testWeakestDomainPostFoundation() {
