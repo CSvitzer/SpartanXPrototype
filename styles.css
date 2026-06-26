@@ -836,7 +836,8 @@ button:disabled {
 
 .pain-options {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 2×2 everywhere: a 4-across row clips "SEVERE" in the narrow desktop sidebar column. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.45rem;
 }
 

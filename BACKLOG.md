@@ -30,12 +30,35 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Visual gate pass (2026-06-26) — screenshots + verified spec
+
+Built `e2e/shots.js` (60 screenshots, phone+desktop, every feature/state → `e2e/shots/`, gitignored)
+and `FEATURES.md` (verified per-feature behavior spec). Did an eyes-on review myself, then re-ran 7
+experience gates with the **screenshots + spec** as input (real visual+behavior review, not code-only).
+**Shipped (verified, tested):**
+- ✅ Desktop pain-row clip — `.pain-options` now 2×2 everywhere ("SEVERE" was clipping in the narrow
+  desktop sidebar; 3 gates + my own eyes confirmed).
+- ✅ Honesty reinforced — modules note adds "Your readiness uses only your manual check-ins."
+- ✅ Challenges hidden during RECOVER (consistency with the existing submit-block).
+- ✅ RECOVER copy sharpened to "recovery is the standard … discipline, not retreat."
+**Discarded after verification:** `--ash` contrast "fail" (computes ~7:1, axe passes — haiku hallucinated
+3.1:1); slider value labels "missing" (they're shown); pain-modal buttons "identical" (primary vs ghost
+are visually distinct — confirmed in `65-modal-pain-downgrade`); **"Powered by" reframe of simulated
+modules — REJECTED (would be deceptive; violates the app's honesty principle).**
+Tests: qa 81→82 (+challenges-hidden-during-recovery). Regenerate shots with `cd e2e && npm run shots`.
+
 **Deferred — engine refinements (need oracle-safe implementation, not yet done):**
 - Beginner pressure-load default + escalation ladder (Trainer).
 - Readiness gate on Continued-Standard domain escalation (Trainer).
 - Chronic single-marker (sleep-debt) overtraining detection (Trainer).
 - Debrief-quality depth (length ≠ depth) + friction-type-gated qualification (Top-1%).
 - Calibration-plateau nudge; friction-resilience leading indicator (Top-1%).
+- Friction-pattern-gated standard elevation — hold elevation if the same friction repeats ≥2× in the
+  last 3 domain proofs (Top-1%, highest-leverage of the batch).
+- Readiness-completeness gate before "Continue Standard" unlocks the full standard (Trainer).
+- RECOVER "practice blueprint" (3 zero-intensity recovery targets) instead of a lockout (Top-1%).
+- Qualification velocity badges (on-pace / behind) on Today progress (Top-1%).
+- Graduation 1-sentence commitment input before ack (Top-1%).
 
 **Phase-B security hardening checklist (for the REAL backend, not the mock):** cryptographically random
 tokens + expiry/refresh; replace fnv1a tamper-evidence with HMAC-SHA256 per-user signatures; rate-limit

@@ -65,6 +65,7 @@ const tests = [
   ["Ledger merge is a lossless union by hash", testMergeLedgers],
   ["Safety flag hides the competitive cloud surface", testCloudPanelProtected],
   ["Challenge submission is blocked during recovery", testChallengeGatedRecovery],
+  ["Challenges are hidden during recovery", testChallengesHiddenDuringRecovery],
   ["Simulated modules are labeled honestly", testSimulatedModulesLabeled],
   ["App-created proofs are signed and verify", testLedgerSignedOnCreate],
   ["Valid proof chain verifies", testLedgerChainValid],
@@ -754,6 +755,17 @@ async function testChallengeGatedRecovery() {
   });
   await win().cloudCompleteChallenge("active-7");
   assert((getState().cloud.status || "").toLowerCase().includes("pause"), "Challenge must be blocked during recovery.");
+}
+
+async function testChallengesHiddenDuringRecovery() {
+  // Consistency with the submit-block: challenges aren't even shown while readiness is RECOVER.
+  await loadStateForToday({
+    tab: "system",
+    readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 },
+    cloud: { url: "http://mock.invalid", handle: "Me", token: "t", status: "", leaderboard: [{ handle: "Me", metric: 3 }], challenges: [{ id: "active-7", title: "7 active days" }] },
+  });
+  assertText("paused while you're in recovery");
+  assert(!doc().body.innerText.includes("7 active days"), "Challenge entries must be hidden during recovery.");
 }
 
 async function testSimulatedModulesLabeled() {

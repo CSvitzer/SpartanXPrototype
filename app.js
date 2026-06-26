@@ -1225,7 +1225,7 @@ function renderTodayTab() {
           </div>
           <div class="panel">
             <h2>Next Required Action</h2>
-            <p>${readiness.command === "RECOVER" ? "Complete a recovery-safe practice. Physical intensity disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
+            <p>${readiness.command === "RECOVER" ? "Recovery is the standard now — complete a recovery-safe practice. Obeying it is discipline, not retreat. Physical intensity is disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
           </div>
           ${state.safetyChecked ? renderTodayProgress() : ""}
           ${disclosure("Foundation Path", renderFoundationProgressPanel())}
@@ -1685,12 +1685,15 @@ function renderCloudPanel() {
   // Protected mode: while a critical safety flag is active, sync stays on (your data) but the
   // competitive surface (leaderboard + challenges) is hidden — no comparison loop when vulnerable.
   const protectedMode = hasCriticalSafetyFlag();
+  const recovering = hasActivityRestrictingFlag() || computeReadiness(state.readiness).command === "RECOVER";
   const board = (c.leaderboard || []).slice(0, 10);
   const challenges = c.challenges || [];
   const community = protectedMode
     ? `<p class="muted small">Community comparison is paused while a safety flag is active — your sync still works. The only standard that matters right now is taking care of yourself.</p>`
     : `${board.length ? `<p class="label">Community — honest, consistent practice (not a verdict)</p><div class="report-rows">${board.map((u, i) => `<p><span>${i + 1}. ${escapeHtml(u.handle)}</span><span>${escapeHtml(String(u.metric))} proven</span></p>`).join("")}</div><p class="muted small">Ranked by consistency × honest reflection — not raw volume. It's company, not your verdict.</p>` : ""}
-       ${challenges.length ? `<p class="label">Challenges</p><div class="stack">${challenges.map(ch => `<div class="line"><span>${escapeHtml(ch.title)}</span><button class="btn ghost" data-action="cloud-complete-challenge" data-id="${escapeAttr(ch.id)}">Submit</button></div>`).join("")}</div>` : ""}`;
+       ${recovering
+          ? `<p class="muted small">Challenges are paused while you're in recovery — hold the standard first.</p>`
+          : (challenges.length ? `<p class="label">Challenges</p><div class="stack">${challenges.map(ch => `<div class="line"><span>${escapeHtml(ch.title)}</span><button class="btn ghost" data-action="cloud-complete-challenge" data-id="${escapeAttr(ch.id)}">Submit</button></div>`).join("")}</div>` : "")}`;
   return `
     <div class="panel">
       <h2>Cloud (beta)</h2>
@@ -1791,7 +1794,7 @@ function renderModulesTab() {
         <div class="view-title">
           <p class="kicker">Full Prototype Modules</p>
           <h1>All product ideas are available.</h1>
-          <p class="muted small">Modules marked “simulated” demonstrate Phase-B features with mock data — no real device, reviewer, or team is connected yet.</p>
+          <p class="muted small">Modules marked “simulated” demonstrate Phase-B features with mock data — no real device, reviewer, or team is connected yet. Your readiness uses only your manual check-ins.</p>
         </div>
         <span class="status-chip bronze">${MODULES.length} Modules</span>
       </div>

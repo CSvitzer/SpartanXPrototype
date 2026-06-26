@@ -16,6 +16,7 @@
     "pwa": "node pwa.js",
     "sync": "node sync-readiness.js",
     "phaseb": "node phaseb.js",
+    "shots": "node shots.js",
     "mock-backend": "node ../mock-backend/server.js",
     "cross": "node cross-engine.js",
     "icons": "node gen-icons.js",
