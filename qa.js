@@ -396,11 +396,6 @@ async function testFullPrototypeModules() {
   assert(state.modules.history.applied === true, "Expected history baseline applied.");
   assert(state.engine.assignmentReason.includes("CSV history calibrated Foundation Day 2"), "Expected history calibration reason.");
 
-  await clickAction("set-module", { value: "teams", attr: "data-module" });
-  await clickAction("simulate-team-week");
-  state = getState();
-  assert(state.modules.teams.reflectionRate === 70, "Expected team reflection rate to change.");
-  assert(state.modules.teams.unresolvedRisk === 0, "Expected team unresolved risk to reduce.");
 
   await clickAction("set-module", { value: "cognitive", attr: "data-module" });
   await clickAction("cognitive-correct");
@@ -1383,12 +1378,6 @@ async function loadStateForToday(patch) {
         standard: "Composure",
         privateScore: 72,
         band: "Developing",
-      },
-      teams: {
-        members: 8,
-        reflectionRate: 63,
-        recoveryAdherence: 71,
-        unresolvedRisk: 1,
       },
       cognitive: {
         task: "Color-word interference",

@@ -165,7 +165,6 @@ const MODULES = [
   { id: "review", label: "Human Review", source: "External proof review", simulated: true },
   { id: "benchmarks", label: "Benchmarks", source: "Private standard comparison", locked: true, simulated: true },
   { id: "history", label: "History Import", source: "CSV baseline" },
-  { id: "teams", label: "Team Standards", source: "Aggregate reliability", locked: true, simulated: true },
   { id: "cognitive", label: "Cognitive Load", source: "Attention under load" },
 ];
 
@@ -321,12 +320,6 @@ const DEFAULT_STATE = {
         activityMix: [],
         longestGapDays: 0,
       },
-    },
-    teams: {
-      members: 8,
-      reflectionRate: 63,
-      recoveryAdherence: 71,
-      unresolvedRisk: 1,
     },
     cognitive: {
       task: "Color-word interference",
@@ -1909,7 +1902,6 @@ function renderActiveModule(active) {
   if (active === "review") return renderHumanReviewModule();
   if (active === "benchmarks") return renderBenchmarksModule();
   if (active === "history") return renderHistoryModule();
-  if (active === "teams") return renderTeamStandardsModule();
   if (active === "cognitive") return renderCognitiveModule();
   return renderGuideModule();
 }
@@ -1959,7 +1951,7 @@ function renderCircleModule() {
       <h2>Private accountability without performance theater.</h2>
       <div class="metric-grid">
         <div class="metric"><span>Reliability Target</span><strong>${circle.reliabilityTarget}%</strong></div>
-        <div class="metric"><span>Reflection Rate</span><strong>${state.modules.teams.reflectionRate}%</strong></div>
+        <div class="metric"><span>Check-ins</span><strong>${circle.checkins.length}</strong></div>
       </div>
       <div class="stack">
         ${circle.checkins.map(item => `
@@ -2201,26 +2193,6 @@ function renderHistoryModule() {
           `).join("")}
         </div>
       ` : ""}
-    </div>
-  `;
-}
-
-function renderTeamStandardsModule() {
-  const teams = state.modules.teams;
-  return `
-    <div class="panel">
-      <p class="kicker">Team Standards · preview</p>
-      <h2>For coaches &amp; teams — not your personal practice.</h2>
-      <p class="muted small">Preview · sample data, and a <strong>different audience</strong>: this is a Phase-B view for someone holding a <em>group</em> to standard (each person's individual proof stays private). It isn't part of becoming your own best — kept here only to show the roadmap.</p>
-      <div class="metric-grid">
-        <div class="metric"><span>Members</span><strong>${teams.members}</strong></div>
-        <div class="metric"><span>Reflection Rate</span><strong>${teams.reflectionRate}%</strong></div>
-        <div class="metric"><span>Recovery Adherence</span><strong>${teams.recoveryAdherence}%</strong></div>
-        <div class="metric"><span>Unresolved Risk</span><strong>${teams.unresolvedRisk}</strong></div>
-      </div>
-      <div class="actions">
-        <button class="btn primary" data-action="simulate-team-week">Simulate Team Week</button>
-      </div>
     </div>
   `;
 }
@@ -2697,7 +2669,6 @@ document.addEventListener("click", event => {
   if (action === "load-sample-history") loadSampleHistoryCsv();
   if (action === "analyze-history") analyzeHistoryCsv();
   if (action === "apply-history-baseline") applyHistoryBaseline();
-  if (action === "simulate-team-week") simulateTeamWeek();
   if (action === "cognitive-correct") recordCognitiveResponse(true);
   if (action === "cognitive-miss") recordCognitiveResponse(false);
   if (action === "select-foundation-day") selectFoundationDay(Number(control.dataset.day));
@@ -3286,14 +3257,6 @@ function activityMixSummary(workouts) {
 
 function round1(value) {
   return Math.round(value * 10) / 10;
-}
-
-function simulateTeamWeek() {
-  const teams = state.modules.teams;
-  teams.reflectionRate = Math.min(100, teams.reflectionRate + 7);
-  teams.recoveryAdherence = Math.min(100, teams.recoveryAdherence + 5);
-  teams.unresolvedRisk = Math.max(0, teams.unresolvedRisk - 1);
-  state.modules.circle.reliabilityTarget = Math.min(95, state.modules.circle.reliabilityTarget + 2);
 }
 
 function recordCognitiveResponse(correct) {

@@ -51,14 +51,15 @@ PWA, localStorage-only, optional opt-in cloud. Single render model: every action
 - **Moving Standard** note. **Graduation card** (`32`): one-time "SEVEN DAYS PROVEN. THE STANDARD NOW
   MOVES." with weakest signal + top friction + claim evidence; **Hold the Standard** ack.
 
-## Modules (12)  — shots 40–43
+## Modules (11)  — shots 40–43
 - Nav list + active module panel. **Phase-B modules are honest "preview"s** (`41–43`): Device Signals,
-  Human Review, Benchmarks, Team Standards carry a **"preview" chip**; each module body opens with
-  "Preview · sample data" AND a one-line statement of the value it adds toward becoming your best
-  (e.g. Signals → "real sleep/strain auto-fills readiness"). **Team Standards is explicitly flagged as a
-  different audience** ("For coaches & teams — not your personal practice"), not core to individual
-  growth. Header note explains the preview convention. Locked modules show "Foundation Confirmed
-  required". Guide is rule-based real support.
+  Human Review, Benchmarks carry a **"preview" chip**; each module body opens with "Preview · sample
+  data" AND a one-line statement of the value it adds toward becoming your best (e.g. Signals → "real
+  sleep/strain auto-fills readiness"). Header note explains the preview convention. Locked modules show
+  "Foundation Confirmed required". Guide is rule-based real support.
+- **Team Standards was CUT (2026-06-27)** — it managed a *group's* aggregate, which has no place in a
+  personal app. Removed cleanly (module + function + action + state + tests); fixed a latent bug where
+  the Circle module was reading `teams.reflectionRate` (now shows its own check-in count).
 
 ## System  — shots 50–53
 - **Profile** (callsign), **Safety** (toggle flags any time; crisis/self-punishment/restriction force

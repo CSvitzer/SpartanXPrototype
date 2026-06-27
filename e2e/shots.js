@@ -49,7 +49,6 @@ const SHOTS = [
   // ── Modules (incl. simulated labels) ──
   { name: "40-modules-guide", seed: merge(Q, { tab: "modules", modules: { active: "guide" } }) },
   { name: "41-modules-signals-simulated", seed: merge(Q, { tab: "modules", modules: { active: "signals" } }) },
-  { name: "42-modules-teams-simulated", seed: merge(Q, { tab: "modules", modules: { active: "teams" } }) },
   { name: "43-modules-benchmarks-simulated", seed: merge(Q, { tab: "modules", modules: { active: "benchmarks" } }) },
   // ── System + Cloud (the 3 states) ──
   { name: "50-system", seed: merge(Q, { tab: "system" }) },

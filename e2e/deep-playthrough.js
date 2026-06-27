@@ -169,8 +169,6 @@ function ok(n, c, d) { R.push({ n, c: !!c, d: d || "" }); }
     m.benchmarks = (await gs()).modules.benchmarks.band === "Advanced";
     await mod("history"); await ca("load-sample-history"); await ca("analyze-history"); await ca("apply-history-baseline");
     m.history = (await gs()).modules.history.applied === true;
-    await mod("teams"); await ca("simulate-team-week");
-    m.teams = (await gs()).modules.teams.reflectionRate === 70;
     await mod("cognitive"); await ca("cognitive-correct"); await ca("cognitive-miss");
     m.cognitive = (await gs()).modules.cognitive.attempts === 2;
     for (const [k, v] of Object.entries(m)) ok("module: " + k, v);

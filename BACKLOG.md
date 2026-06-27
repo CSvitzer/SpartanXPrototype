@@ -30,6 +30,14 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Team Standards CUT (2026-06-27) — it's a personal app
+
+The owner confirmed Spartan X is a **personal** app, so the Team Standards module (a coach/team view of a
+*group's* aggregate) was bloat and is removed cleanly: MODULES entry, `renderTeamStandardsModule`,
+`simulateTeamWeek`, the `simulate-team-week` action, `state.modules.teams`, and all test refs (qa, deep,
+full-coverage ALL + step, shots). Fixed a latent bug surfaced by the cut: the **Circle** module was
+reading `state.modules.teams.reflectionRate` — now shows its own check-in count. Modules 12 → 11.
+
 ## Enhancement batch "do it all" (2026-06-27) — shipped, 3 opus gates APPROVED
 
 Built the buildable, value-positive client enhancements; qa 88→95; pipeline 15/15; oracle 12,596/0.
