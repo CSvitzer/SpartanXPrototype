@@ -358,6 +358,7 @@ const DEFAULT_STATE = {
     scaled: false,
     minimumOnly: false,
     painReported: false,
+    prediction: null, // pre-practice "call it": "Clean" | "Scaled" | "Miss" | null (optional)
   },
   debrief: {
     result: "Completed",
@@ -1356,6 +1357,21 @@ function renderFrictionPrime() {
   `;
 }
 
+// Pre-practice prediction ("call it"): honest self-assessment is the rep. Optional; scored vs the real
+// outcome at debrief, then surfaced as a calibration rate — the deliberate-practice feedback loop.
+function renderPredictionControl() {
+  const current = state.mission.prediction;
+  const calls = ["Clean", "Scaled", "Miss"];
+  return `
+    <div class="panel">
+      <p class="kicker">Call it</p>
+      <p class="muted small">Before you start, predict your outcome. Naming it honestly — and seeing how the call matched reality — is how you learn to trust your own read.</p>
+      <div class="call-options">
+        ${calls.map(c => `<button data-action="set-prediction" data-call="${c}" aria-pressed="${current === c}">${c}</button>`).join("")}
+      </div>
+    </div>`;
+}
+
 function renderMissionTab() {
   const readiness = computeReadiness(state.readiness);
   const mission = readiness.command === "RECOVER"
@@ -1388,6 +1404,7 @@ function renderMissionTab() {
         </div>
       </div>
       ${renderFrictionPrime()}
+      ${renderPredictionControl()}
       <div class="timer">
         <div>
           <strong>${state.mission.status === "active" ? "10:00" : "--:--"}</strong>
@@ -2373,6 +2390,21 @@ function clearImport() {
 
 // C1: privacy-first local report. Derives the user's OWN numbers from local state only — no
 // fabrication, no backend, no telemetry. Every figure is a real count from the proof ledger/state.
+// Deliberate-practice calibration: bucket a proof's real outcome so a pre-practice prediction can be
+// scored against it. Layered ENTIRELY outside the oracle-swept pure functions (scoreDebrief etc. are
+// untouched); the prediction/predictionHit fields are NOT in the B4 hash canon, so determinism holds.
+function outcomeBucket(result, minimumOnly) {
+  if (["Failed", "Abandoned"].includes(result)) return "Miss";
+  if (minimumOnly || result === "Scaled") return "Scaled";
+  return "Clean"; // Completed / Corrected at full standard
+}
+
+function computeCalibration() {
+  const withPred = (Array.isArray(state.proofLedger) ? state.proofLedger : []).filter(e => e && e.prediction);
+  const hits = withPred.filter(e => e.predictionHit).length;
+  return { total: withPred.length, hits, rate: withPred.length ? Math.round((hits / withPred.length) * 100) : null };
+}
+
 function computeReport() {
   const ledger = Array.isArray(state.proofLedger) ? state.proofLedger : [];
   const reflections = ledger.filter(p => p && p.source === "reflection");
@@ -2400,6 +2432,7 @@ function computeReport() {
     underReviewRate: ledger.length ? Math.round((byStatus["Under Review"] / ledger.length) * 100) : 0,
     highestTier: highest,
     recoveryProofs,
+    calibration: computeCalibration(),
   };
 }
 
@@ -2429,6 +2462,7 @@ function renderReportModal() {
           <p><span>Under review</span><span>${r.byStatus["Under Review"]} (${r.underReviewRate}%)</span></p>
           <p><span>Rejected</span><span>${r.byStatus.Rejected}</span></p>
           <p><span>Recovery obeyed (a skill)</span><span>${r.recoveryProofs}</span></p>
+          <p><span>Self-read accuracy (honesty, not outcome)</span><span>${r.calibration.rate === null ? "—" : r.calibration.rate + "% (" + r.calibration.hits + "/" + r.calibration.total + ")"}</span></p>
           <p><span>Most common friction</span><span>${fric}</span></p>
         </div>
         <div class="actions">
@@ -2598,6 +2632,7 @@ document.addEventListener("click", event => {
   if (action === "begin-main-mission") beginMission();
   if (action === "continue-standard") continueStandard();
   if (action === "complete-mission") completeMission();
+  if (action === "set-prediction") state.mission.prediction = control.dataset.call;
   if (action === "open-adjust") state.modal = "adjust";
   if (action === "set-adjust-reason") state.adjustReason = control.dataset.reason;
   if (action === "apply-adjust") applyAdjustPractice();
@@ -2724,6 +2759,7 @@ function setPracticeForDay(dayNumber) {
     scaled: false,
     painReported: false,
     minimumOnly: false,
+    prediction: null,
   };
   state.engine.assignmentReason = assignment.reason;
   state.engine.targetedPractice = assignment.targeted ? assignment.name : null;
@@ -3716,6 +3752,11 @@ function submitDebrief() {
     source: "reflection",
   };
 
+  // Calibration: score the pre-practice prediction against the real outcome (non-hashed fields).
+  const prediction = state.mission.prediction || null;
+  entry.prediction = prediction;
+  entry.predictionHit = prediction ? prediction === outcomeBucket(entry.result, minimumOnly) : null;
+
   if (state.debrief.decision === "Recover") state.recoveryObeyed = true;
   if (state.debrief.friction.includes("Boredom") || state.debrief.friction.includes("Fatigue")) state.noMoodMission = true;
   if (["Failed", "Abandoned", "Corrected"].includes(state.debrief.result)) state.failuresDebriefed += 1;
@@ -3725,6 +3766,7 @@ function submitDebrief() {
   state.mission.painReported = false;
   state.mission.scaled = false;
   state.mission.minimumOnly = false;
+  state.mission.prediction = null;
   state.debrief = {
     result: "Completed",
     friction: [],

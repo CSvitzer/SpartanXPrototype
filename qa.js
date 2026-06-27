@@ -41,6 +41,7 @@ const tests = [
   ["RECOVER readiness assigns recovery practice", testRecoverAssignsRecovery],
   ["Post-Foundation targets weakest domain", testWeakestDomainPostFoundation],
   ["Moving Standard applies progressive overload", testProgressiveOverload],
+  ["Prediction is scored against the real outcome", testPredictionCalibration],
   ["Reflection stepper gates submit to last step", testDebriefStepper],
   ["Reflection stepper chips jump to a step", testDebriefJump],
   ["Re-entry banner after absence", testReentryAfterAbsence],
@@ -576,6 +577,23 @@ async function testRecoverAssignsRecovery() {
   await loadStateForToday({ readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 } });
   const assignment = win().choosePracticeAssignment({ day: 1, deadline: "21:30" });
   assert(assignment.domain === "readiness" && assignment.name === "Recovery Practice", "RECOVER readiness must assign a recovery-safe practice.");
+}
+
+async function testPredictionCalibration() {
+  // Deliberate practice: a pre-practice prediction is scored against the real outcome (non-hashed).
+  const mk = (prediction, result) => ({
+    mission: { prediction, domain: "body", name: "M", day: 1, status: "active", minimumOnly: false, scaled: false, painReported: false },
+    debrief: { result, friction: ["Delay"], frictionLevel: "medium", negotiation: "named it", decision: "Hold", lesson: "learned plenty here", correction: "fix it next time" },
+  });
+  await loadStateForToday(mk("Clean", "Completed"));
+  win().submitDebrief(); win().render();
+  let top = getState().proofLedger[0];
+  assert(top.prediction === "Clean" && top.predictionHit === true, "Clean call + Completed outcome = hit.");
+  assert(win().computeCalibration().rate === 100, "Calibration is 100% after one hit.");
+  await loadStateForToday(mk("Clean", "Failed"));
+  win().submitDebrief(); win().render();
+  top = getState().proofLedger[0];
+  assert(top.prediction === "Clean" && top.predictionHit === false, "Clean call + Failed outcome = miss.");
 }
 
 async function testProgressiveOverload() {

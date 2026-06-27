@@ -97,9 +97,13 @@ Tests: qa 81→82 (+challenges-hidden-during-recovery). Regenerate shots with `c
 - Graduation 1-sentence commitment input before ack (Top-1%).
 - ✅ **DONE — Progressive overload on the minimum** (2026-06-26): floor now rises with the level via
   `OVERLOAD_LADDER`/`overloadFor` + concrete `DOMAIN_BASE_PRACTICE`. Follow-up: numeric base-rep table.
-- **Pre-practice prediction → calibration loop** — call your result before practice, compare at debrief,
-  surface a calibration score; upgrades `scoreDebrief` from presence-check to honest self-assessment
-  (Top-1%, opus — net-new, touches the oracle-swept scoreDebrief, needs care).
+- ✅ **DONE — Pre-practice prediction → calibration loop** (2026-06-27): "Call it" (Clean/Scaled/Miss) on
+  the brief → scored vs the real outcome at debrief → calibration rate in the report. Built ADDITIVELY:
+  `scoreDebrief` untouched, prediction fields non-hashed → oracle stays 12,596/0. `outcomeBucket` +
+  `computeCalibration`. qa +1; full-coverage +set-prediction. Approved by 3 opus gates (top-1% /
+  determinism / ethos); report label reframed "Self-read accuracy (honesty, not outcome)" per the ethos
+  nit. Follow-up (opus): lock the call at practice-start + per-bucket breakdown (a single rate can hide a
+  consistent optimism bias).
 - Report-Pain mid-practice floor: a dedicated in-session pain report from "none" only reaches moderate
   (SCALE), not RECOVER — consider routing it through the injury scan (Trainer, opus — judgment call).
 - Default `standards.will` is "Under Review" (a status that elsewhere means a safety/integrity hold) at
