@@ -41,7 +41,14 @@ const tests = [
   ["RECOVER readiness assigns recovery practice", testRecoverAssignsRecovery],
   ["Post-Foundation targets weakest domain", testWeakestDomainPostFoundation],
   ["Moving Standard applies progressive overload", testProgressiveOverload],
+  ["Overload prescribes an exact numeric target", testOverloadNumeric],
   ["Prediction is scored against the real outcome", testPredictionCalibration],
+  ["Prediction locks once practice starts", testPredictionLocks],
+  ["Calibration surfaces a directional bias", testCalibrationBias],
+  ["Recurring negotiation excuse is surfaced", testNegotiationPattern],
+  ["Claim restates from accumulated proof", testClaimCompounds],
+  ["Declining reflection depth nudges on Today", testTrendNudge],
+  ["A verified proof can be shared (text)", testShareProof],
   ["Reflection stepper gates submit to last step", testDebriefStepper],
   ["Reflection stepper chips jump to a step", testDebriefJump],
   ["Re-entry banner after absence", testReentryAfterAbsence],
@@ -577,6 +584,67 @@ async function testRecoverAssignsRecovery() {
   await loadStateForToday({ readiness: { sleep: 3, energy: 3, soreness: 2, pain: "severe", stress: 3, emotional: 2, motivation: 2 } });
   const assignment = win().choosePracticeAssignment({ day: 1, deadline: "21:30" });
   assert(assignment.domain === "readiness" && assignment.name === "Recovery Practice", "RECOVER readiness must assign a recovery-safe practice.");
+}
+
+async function testOverloadNumeric() {
+  // Overload resolves to an EXACT scaled number, not an abstract "base minimum".
+  const fc = { foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true } };
+  await loadStateForToday({ ...fc, standards: { body: "Tested", mind: "Elevated", will: "Elevated", execution: "Elevated", readiness: "HOLD", integrity: "Forming" } });
+  const a = win().choosePracticeAssignment({ day: 8, deadline: "21:30" });
+  assert(a.domain === "body" && /\d/.test(a.minimum), "Body @Tested must give a numeric target: " + a.minimum);
+  assert(/2 min controlled movement/.test(a.minimum), "Tested = base count (2 min): " + a.minimum);
+  await loadStateForToday({ ...fc, standards: { body: "Baseline", mind: "Elevated", will: "Elevated", execution: "Elevated", readiness: "HOLD", integrity: "Forming" } });
+  const b = win().choosePracticeAssignment({ day: 8, deadline: "21:30" });
+  assert(/4 min controlled movement/.test(b.minimum), "Baseline = 2× base (4 min): " + b.minimum);
+}
+
+async function testPredictionLocks() {
+  // Once practice is active the call is locked — the control shows "Locked in" and offers no buttons.
+  await loadStateForToday({ tab: "mission", mission: { status: "active", prediction: "Clean", domain: "body", name: "M", day: 1, minimumOnly: false, scaled: false, painReported: false } });
+  assertText("Locked in");
+  assert(!doc().querySelector('[data-action="set-prediction"]'), "No set-prediction button once practice is active.");
+}
+
+async function testCalibrationBias() {
+  // 4+ Clean calls that mostly miss → an "Optimistic" bias read.
+  const led = [];
+  for (let i = 0; i < 4; i++) led.push(proof({ text: "P" + i, prediction: "Clean", predictionHit: i === 0, status: "Accepted" }));
+  await loadStateForToday({ proofLedger: led });
+  const cal = win().computeCalibration();
+  assert(cal.total === 4 && cal.buckets.Clean.called === 4, "All four are Clean calls.");
+  assert(/optimistic/i.test(cal.bias || ""), "Mostly-missed Clean calls read as optimistic: " + cal.bias);
+}
+
+async function testNegotiationPattern() {
+  // A recurring excuse mined from past negotiation text surfaces in the friction prime.
+  await loadStateForToday({
+    proofLedger: [proof({ negotiation: "I was too tired to start" }), proof({ negotiation: "felt tired again" })],
+    debrief: { result: "Completed", friction: ["Boredom"], frictionLevel: "high", negotiation: "x", decision: "Hold", lesson: "y", correction: "z" },
+  });
+  const pat = win().negotiationPattern();
+  assert(pat && pat.cue === "tired" && pat.count === 2, "Recurring 'tired' excuse detected.");
+}
+
+async function testClaimCompounds() {
+  // Claim restates from accumulated proof once enough accepted evidence exists.
+  await loadStateForToday({ claim: "I am disciplined.", proofLedger: [proof({}), proof({}), proof({})] });
+  openDisclosures(); // Active Claim sits in a collapsed disclosure on Today
+  assertText("stand behind this");
+}
+
+async function testTrendNudge() {
+  // Recent reflection depth below the overall average nudges the user on Today.
+  const led = [];
+  for (let i = 0; i < 5; i++) led.push(proof({ text: "recent" + i, quality: 2, source: "reflection" }));
+  for (let i = 0; i < 5; i++) led.push(proof({ text: "older" + i, quality: 5, source: "reflection" }));
+  await loadStateForToday({ tab: "today", proofLedger: led, debriefCount: 10 });
+  assertText("slipping");
+}
+
+async function testShareProof() {
+  // Share text names the proof + its short hash, no fabricated stats.
+  const text = win().proofShareText(proof({ text: "Held the line.", hash: "deadbeef0011" }));
+  assert(/Spartan X proof/i.test(text) && text.includes("Held the line.") && text.includes("#deadbeef"), "Share text: " + text);
 }
 
 async function testPredictionCalibration() {

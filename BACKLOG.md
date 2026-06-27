@@ -30,6 +30,24 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Enhancement batch "do it all" (2026-06-27) — shipped, 3 opus gates APPROVED
+
+Built the buildable, value-positive client enhancements; qa 88→95; pipeline 15/15; oracle 12,596/0.
+- ✅ **Numeric progressive overload** — `DOMAIN_BASE` (n/label/plural) × rung `mult` → exact targets
+  ("4 min controlled movement — back-to-back", "2 protected practice windows").
+- ✅ **Calibration depth** — per-bucket `bias` read ("Optimistic…/Well-calibrated/Noisy"); the call now
+  **locks** once practice is active (render + dispatcher guard).
+- ✅ **Negotiation mining** — recurring excuse from past `negotiation` text (word-boundary match, per the
+  gates' accuracy note) surfaced in the friction prime.
+- ✅ **Compounding claim** — "N reflected proofs now stand behind this" in the claim deconstruction.
+- ✅ **Trend nudge** — Today warns when recent reflection depth slips vs the overall average.
+- ✅ **Share a proof** — `proofShareText`/`shareProof` (text only, hash-verified, no fabricated stats).
+**Pushed back (not built, with reason):** real opt-in reminders (a daily reminder for a CLOSED PWA needs
+push = Phase-B backend; the panel is already honestly labeled); debrief-stepper mobile redesign (cosmetic
+churn on a working, tested screen); report-pain floor (safety judgment call with over-trigger risk —
+deserves its own careful treatment, kept as a deferred safety item).
+Gate determinism note honored: all 5 oracle-swept fns byte-unchanged; new entry fields off the hash canon.
+
 ## Engine fix (2026-06-26) — progressive overload (Moving Standard now moves the WORK)
 
 The post-Foundation "Continued Standard" used a FIXED generic prescription ("Minimum practice in

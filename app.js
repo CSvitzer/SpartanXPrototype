@@ -1154,6 +1154,17 @@ function renderCallsignCard() {
 
 // Surface progress on Today (not only the Standard tab): weakest-domain elevation + the next
 // qualification tier's met/total. Makes the loop visible so users know they're close.
+// Leading indicator: warn when recent reflection depth is trending DOWN vs the overall average — the
+// slope predicts disengagement before the lagging totals do. Loss-framed but kind; only with enough data.
+function trendNudge() {
+  const r = computeReport();
+  if (r.avgQuality == null || r.recentAvgQuality == null || r.totalProofs < 4) return "";
+  if (r.recentAvgQuality < r.avgQuality - 0.5) {
+    return `<div class="panel"><p class="muted small">Your recent reflection depth is slipping (${r.recentAvgQuality.toFixed(1)} vs ${r.avgQuality.toFixed(1)} overall). One clean, honest proof resets the trend.</p></div>`;
+  }
+  return "";
+}
+
 function renderTodayProgress() {
   const domain = weakestDomain();
   const tiers = computeQualification();
@@ -1228,6 +1239,7 @@ function renderTodayTab() {
             <h2>Next Required Action</h2>
             <p>${readiness.command === "RECOVER" ? "Recovery is the standard now — complete a recovery-safe practice. Obeying it is discipline, not retreat. Physical intensity is disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
           </div>
+          ${state.safetyChecked ? trendNudge() : ""}
           ${state.safetyChecked ? renderTodayProgress() : ""}
           ${disclosure("Foundation Path", renderFoundationProgressPanel())}
         </div>
@@ -1287,6 +1299,7 @@ function renderDeconstructionPanel() {
       <ul class="requirement-list compact">
         ${claimCase.evidence.map(item => `<li class="${item.done ? "done" : ""}">${escapeHtml(item.label)}</li>`).join("")}
       </ul>
+      ${acceptedProofs().length >= 3 ? `<p class="muted small">${acceptedProofs().length} reflected proofs now stand behind this — your claim moves with the evidence, not your mood.</p>` : ""}
       <p class="muted small">${escapeHtml(claimCase.replacement)}</p>
     </div>
   `;
@@ -1343,16 +1356,34 @@ function frictionResponse(name) {
   return FRICTION_RESPONSES[name] || "Name it, do the minimum cleanly, reflect after.";
 }
 
+// Recurring "talked-myself-out" cues mined from past negotiation text — the most predictive
+// disengagement signal, captured but otherwise unused. Surfaced so the user pre-decides their answer.
+const NEGOTIATION_CUES = ["tired", "busy", "later", "tomorrow", "no time", "too much", "can't", "cant", "skip", "rest", "not now", "don't feel"];
+// Word-boundary match so a cue isn't mislabeled inside another word ("rest" in "restless") — surfacing a
+// wrong "recurring story" would break trust, which matters more than catching every phrasing.
+const NEGOTIATION_RX = NEGOTIATION_CUES.map(c => new RegExp("\\b" + c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i"));
+function negotiationPattern() {
+  const texts = (Array.isArray(state.proofLedger) ? state.proofLedger : [])
+    .map(e => String((e && e.negotiation) || "").toLowerCase()).filter(Boolean);
+  if (texts.length < 2) return null;
+  const counts = {};
+  for (const t of texts) NEGOTIATION_CUES.forEach((cue, i) => { if (NEGOTIATION_RX[i].test(t)) counts[cue] = (counts[cue] || 0) + 1; });
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+  return top && top[1] >= 2 ? { cue: top[0], count: top[1] } : null;
+}
+
 // Pre-mission friction prime (top-1% lens: close the gap between diagnosis and decision). If a
-// friction repeats, name it AND coach the response before the practice — not just at debrief.
+// friction (or a recurring excuse) repeats, name it AND coach the response before the practice.
 function renderFrictionPrime() {
   const dominant = dominantHighFriction();
-  if (!dominant) return "";
+  const neg = negotiationPattern();
+  if (!dominant && !neg) return "";
   return `
     <div class="panel warning">
       <p class="kicker">Friction prime</p>
-      <p><strong>${escapeHtml(dominant.name)}</strong> showed up ${dominant.count}× recently. Decide now how you'll meet it before you start — not after.</p>
-      <p class="muted small">Try this: ${escapeHtml(frictionResponse(dominant.name))}</p>
+      ${dominant ? `<p><strong>${escapeHtml(dominant.name)}</strong> showed up ${dominant.count}× recently. Decide now how you'll meet it before you start — not after.</p>
+      <p class="muted small">Try this: ${escapeHtml(frictionResponse(dominant.name))}</p>` : ""}
+      ${neg ? `<p class="muted small">Recurring story: “${escapeHtml(neg.cue)}” appeared ${neg.count}× in how you talk yourself out. Pre-decide your answer to it now.</p>` : ""}
     </div>
   `;
 }
@@ -1362,10 +1393,18 @@ function renderFrictionPrime() {
 function renderPredictionControl() {
   const current = state.mission.prediction;
   const calls = ["Clean", "Scaled", "Miss"];
+  const locked = state.mission.status === "active"; // call is locked once practice starts — no hindsight edits
+  if (locked) {
+    return `
+      <div class="panel">
+        <p class="kicker">Call it</p>
+        <p class="muted small">${current ? `Locked in: <strong>${escapeHtml(current)}</strong>. Honor it — you'll see how it matched reality at reflection.` : "No call made before you started. Make one next time — predicting is the rep."}</p>
+      </div>`;
+  }
   return `
     <div class="panel">
       <p class="kicker">Call it</p>
-      <p class="muted small">Before you start, predict your outcome. Naming it honestly — and seeing how the call matched reality — is how you learn to trust your own read.</p>
+      <p class="muted small">Before you start, predict your outcome. Naming it honestly — and seeing how the call matched reality — is how you learn to trust your own read. (Locks when you begin.)</p>
       <div class="call-options">
         ${calls.map(c => `<button data-action="set-prediction" data-call="${c}" aria-pressed="${current === c}">${c}</button>`).join("")}
       </div>
@@ -1532,6 +1571,25 @@ function renderDebriefField(key, d) {
       </div>`;
 }
 
+// Share a verified proof — text only, no fabricated stats; the B4 hash makes a shared proof defensible.
+// The only organic-acquisition surface, and honest by construction.
+function proofShareText(p) {
+  if (!p) return "";
+  const short = String(p.hash || "").slice(0, 8);
+  return `Spartan X proof: ${p.text} — verified locally${short ? " (#" + short + ")" : ""}.`;
+}
+function shareProof() {
+  const p = state.proofLedger.find(e => e && e.status === "Accepted") || state.proofLedger[0];
+  if (!p) return;
+  const text = proofShareText(p);
+  try {
+    if (typeof navigator !== "undefined" && navigator.share) { navigator.share({ text }).catch(() => {}); state.shareStatus = "Shared."; }
+    else if (typeof navigator !== "undefined" && navigator.clipboard) { navigator.clipboard.writeText(text).catch(() => {}); state.shareStatus = "Copied to clipboard."; }
+    else state.shareStatus = "Sharing isn't available here.";
+  } catch (error) { state.shareStatus = "Could not share."; }
+  render();
+}
+
 function renderProofTab() {
   const filter = state.proofFilter || "all";
   const domains = Array.from(new Set(state.proofLedger.map(entry => entry.domain).filter(Boolean)));
@@ -1551,6 +1609,7 @@ function renderProofTab() {
           ${domains.map(domain => `<button data-action="set-proof-filter" data-filter="${escapeAttr(domain)}" aria-pressed="${filter === domain}">${escapeHtml(domain)}</button>`).join("")}
         </div>
       ` : ""}
+      ${state.proofLedger.some(e => e && e.status === "Accepted") ? `<div class="actions"><button class="btn ghost" data-action="share-proof">Share latest proof</button>${state.shareStatus ? `<span class="muted small">${escapeHtml(state.shareStatus)}</span>` : ""}</div>` : ""}
       ${entries.length ? `
         <div class="stack">
           ${entries.map(entry => `
@@ -1620,7 +1679,7 @@ function renderGraduationCard() {
       <h2>Seven days proven. The standard now moves.</h2>
       <p class="muted small">Weakest signal: <strong>${escapeHtml(domain)}</strong>.${dominant ? ` Top friction: <strong>${escapeHtml(dominant.name)}</strong> (${dominant.count}×).` : ""} ${claimLine}</p>
       <p class="muted small">From here the standard rises only through reflected proof and reflection quality. Proof #1 is evidence; proof #3 is a pattern. The standard never finishes moving.</p>
-      <div class="actions"><button class="btn primary" data-action="graduate-ack">Hold the standard</button></div>
+      <div class="actions"><button class="btn primary" data-action="graduate-ack">Hold the standard</button><button class="btn ghost" data-action="share-proof">Share a proof</button></div>
     </div>
   `;
 }
@@ -2402,7 +2461,21 @@ function outcomeBucket(result, minimumOnly) {
 function computeCalibration() {
   const withPred = (Array.isArray(state.proofLedger) ? state.proofLedger : []).filter(e => e && e.prediction);
   const hits = withPred.filter(e => e.predictionHit).length;
-  return { total: withPred.length, hits, rate: withPred.length ? Math.round((hits / withPred.length) * 100) : null };
+  const rate = withPred.length ? Math.round((hits / withPred.length) * 100) : null;
+  // Per-bucket breakdown reveals a directional bias a single blended rate would hide.
+  const buckets = {};
+  for (const b of ["Clean", "Scaled", "Miss"]) {
+    const called = withPred.filter(e => e.prediction === b);
+    buckets[b] = { called: called.length, hit: called.filter(e => e.predictionHit).length };
+  }
+  let bias = null;
+  if (withPred.length >= 4) {
+    const c = buckets.Clean;
+    if (c.called >= 3 && c.hit / Math.max(1, c.called) < 0.5) bias = "Optimistic — you call “Clean” more than you land it.";
+    else if (rate >= 80) bias = "Well-calibrated — your read matches reality.";
+    else if (rate <= 40) bias = "Noisy read — name the outcome more carefully before you start.";
+  }
+  return { total: withPred.length, hits, rate, buckets, bias };
 }
 
 function computeReport() {
@@ -2463,6 +2536,7 @@ function renderReportModal() {
           <p><span>Rejected</span><span>${r.byStatus.Rejected}</span></p>
           <p><span>Recovery obeyed (a skill)</span><span>${r.recoveryProofs}</span></p>
           <p><span>Self-read accuracy (honesty, not outcome)</span><span>${r.calibration.rate === null ? "—" : r.calibration.rate + "% (" + r.calibration.hits + "/" + r.calibration.total + ")"}</span></p>
+          ${r.calibration.bias ? `<p class="muted small">${escapeHtml(r.calibration.bias)}</p>` : ""}
           <p><span>Most common friction</span><span>${fric}</span></p>
         </div>
         <div class="actions">
@@ -2632,7 +2706,8 @@ document.addEventListener("click", event => {
   if (action === "begin-main-mission") beginMission();
   if (action === "continue-standard") continueStandard();
   if (action === "complete-mission") completeMission();
-  if (action === "set-prediction") state.mission.prediction = control.dataset.call;
+  if (action === "set-prediction" && state.mission.status !== "active") state.mission.prediction = control.dataset.call;
+  if (action === "share-proof") { shareProof(); return; }
   if (action === "open-adjust") state.modal = "adjust";
   if (action === "set-adjust-reason") state.adjustReason = control.dataset.reason;
   if (action === "apply-adjust") applyAdjustPractice();
@@ -3414,25 +3489,28 @@ function recordModuleProof({
 // Progressive overload: the prescribed floor RISES with the domain's level, so the Moving Standard
 // moves the actual work — not just the label. Clamped; Forming/Regressed/Under Review → the base rung.
 const OVERLOAD_LADDER = [
-  { tag: "Establish the rep", standard: "Establish the rep — form over volume.", scale: "once, clean." },
-  { tag: "Hold the standard", standard: "Hold the standard — no scaling.", scale: "the full amount, no scaling." },
-  { tag: "Raise the floor", standard: "Raise the floor — beat last time.", scale: "1.5× (more reps or minutes)." },
-  { tag: "Sustain under fatigue", standard: "Sustain the higher floor under fatigue.", scale: "back-to-back, quality held." },
-  { tag: "Compress", standard: "Compress — same standard, harder conditions.", scale: "in less time or at higher difficulty." },
+  { tag: "Establish the rep", standard: "Establish the rep — form over volume.", mult: 1, mode: "once, clean." },
+  { tag: "Hold the standard", standard: "Hold the standard — no scaling.", mult: 1, mode: "the full amount, no scaling." },
+  { tag: "Raise the floor", standard: "Raise the floor — beat last time.", mult: 1.5, mode: "" },
+  { tag: "Sustain under fatigue", standard: "Sustain the higher floor under fatigue.", mult: 2, mode: "back-to-back, quality held." },
+  { tag: "Compress", standard: "Compress — same standard, harder conditions.", mult: 2, mode: "in less time or at higher difficulty." },
 ];
-// Concrete base practice per domain so the overload scaling resolves to something executable today
-// (e.g. "2 min controlled movement — 1.5× (more reps or minutes)") rather than an abstract "base minimum".
-const DOMAIN_BASE_PRACTICE = {
-  body: "2 min controlled movement",
-  mind: "3 min single-target focus",
-  will: "5 min started before the feeling",
-  execution: "one protected practice window",
+// Numeric base per domain so overload resolves to an EXACT target (e.g. "3 min controlled movement —
+// 1.5× base"), not an abstract "base minimum". The rung multiplier scales the base count.
+const DOMAIN_BASE = {
+  body: { n: 2, label: "min controlled movement" },
+  mind: { n: 3, label: "min single-target focus" },
+  will: { n: 5, label: "min started before the feeling" },
+  execution: { n: 1, label: "protected practice window", plural: "protected practice windows" },
 };
 function overloadFor(domain) {
   const lvl = Math.max(0, Math.min(levelIndex(state.standards[domain]), OVERLOAD_LADDER.length - 1));
   const rung = OVERLOAD_LADDER[lvl];
-  const base = DOMAIN_BASE_PRACTICE[domain] || "the base practice";
-  return { ...rung, minimum: `${base} — ${rung.scale}` };
+  const b = DOMAIN_BASE[domain] || { n: 1, label: "rep of the base practice", plural: "reps of the base practice" };
+  const n = Math.ceil(b.n * rung.mult);
+  const label = n === 1 ? b.label : (b.plural || b.label);
+  const mode = rung.mode ? ` — ${rung.mode}` : (rung.mult > 1 ? ` — ${rung.mult}× base` : "");
+  return { ...rung, minimum: `${n} ${label}${mode}` };
 }
 
 function choosePracticeAssignment(day) {
@@ -3756,6 +3834,7 @@ function submitDebrief() {
   const prediction = state.mission.prediction || null;
   entry.prediction = prediction;
   entry.predictionHit = prediction ? prediction === outcomeBucket(entry.result, minimumOnly) : null;
+  entry.negotiation = state.debrief.negotiation || ""; // kept (non-hashed) so recurring excuses can be mined
 
   if (state.debrief.decision === "Recover") state.recoveryObeyed = true;
   if (state.debrief.friction.includes("Boredom") || state.debrief.friction.includes("Fatigue")) state.noMoodMission = true;

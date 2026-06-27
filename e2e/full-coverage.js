@@ -93,8 +93,10 @@ const QUALIFIED = {
     await ca("select-claim", { attr: "data-claim", value: "I am disciplined." });
     await page.fill("#callsignPrompt", "Operator-7"); // optional callsign (deferred identity)
     await ca("confirm-callsign");
+    await ca("set-tab", { attr: "data-tab", value: "mission" });    // assigned brief
+    await ca("set-prediction", { attr: "data-call", value: "Clean" }); // call BEFORE begin (then it locks)
+    await ca("set-tab", { attr: "data-tab", value: "today" });      // back to Today for its CTA
     await ca("begin-main-mission");
-    await ca("set-prediction", { attr: "data-call", value: "Clean" }); // pre-practice calibration call
     const s1 = await gs();
     ok("S1 onboarding traversal", s1.onboardingComplete === true && s1.safetyChecked === true && s1.profile.callsign === "Operator-7");
   } catch (e) { ok("S1 onboarding", false, e.message); }
