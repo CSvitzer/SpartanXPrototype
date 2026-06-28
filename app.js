@@ -170,6 +170,11 @@ const MODULES = [
 
 const PRINCIPLES = [
   {
+    id: "ownership",
+    title: "Extreme Ownership — Of Your Part.",
+    body: "Own your response, your friction, your correction. No excuses, no blame. But not outcomes or others outside your control — that is not strength, it is self-punishment. What you build, you owe forward: the strongest carry the most.",
+  },
+  {
     id: "emotion",
     title: "Emotion Reports. Doctrine Commands.",
     body: "Emotion is treated as signal, not authority. The practice is to hear it, name it, and choose cleanly.",
@@ -182,7 +187,7 @@ const PRINCIPLES = [
   {
     id: "recovery",
     title: "Recovery Is Part Of The Standard.",
-    body: "Hard is precise. Reckless is weak. Scaling and recovery are obedience when risk is present.",
+    body: "Hard is precise. Reckless is weak. Scaling and recovery are obedience when risk is present — you recover so you can be counted on tomorrow.",
   },
   {
     id: "duty",
@@ -660,9 +665,9 @@ function renderRail() {
         </div>
       ` : `
         <div class="rail-copy">
-          <p class="kicker">Stoic Standard Minimalism</p>
+          <p class="kicker">Stoic Extreme Ownership</p>
           <h1>Prove it to yourself.</h1>
-          <p>Claims do not qualify. Proof does. The system measures response, friction, reflection quality, and whether the standard can move without reckless pressure.</p>
+          <p>Claims do not qualify. Proof does. You own your response, your friction, your correction — never the outcome or anyone else; that's not strength, it's self-punishment. What you build, you carry forward: the strongest carry the most.</p>
         </div>
       `}
     </aside>
@@ -705,6 +710,7 @@ function renderSplash() {
           <strong>Spartan X</strong>
         </div>
         <p class="kicker">Prove it to yourself.</p>
+        <p class="muted small">Own your part. The strongest carry the most.</p>
       </div>
     </section>
   `;
@@ -1231,6 +1237,7 @@ function renderTodayTab() {
           <div class="panel">
             <h2>Next Required Action</h2>
             <p>${readiness.command === "RECOVER" ? "Recovery is the standard now — complete a recovery-safe practice. Obeying it is discipline, not retreat. Physical intensity is disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
+            <p class="muted small">Own your part today — that's what makes you someone others can count on.</p>
           </div>
           ${state.safetyChecked ? trendNudge() : ""}
           ${state.safetyChecked ? renderTodayProgress() : ""}
@@ -1672,6 +1679,7 @@ function renderGraduationCard() {
       <h2>Seven days proven. The standard now moves.</h2>
       <p class="muted small">Weakest signal: <strong>${escapeHtml(domain)}</strong>.${dominant ? ` Top friction: <strong>${escapeHtml(dominant.name)}</strong> (${dominant.count}×).` : ""} ${claimLine}</p>
       <p class="muted small">From here the standard rises only through reflected proof and reflection quality. Proof #1 is evidence; proof #3 is a pattern. The standard never finishes moving.</p>
+      <p class="muted small">What you've proven, you now owe forward — the strongest carry the most.</p>
       <div class="actions"><button class="btn primary" data-action="graduate-ack">Hold the standard</button><button class="btn ghost" data-action="share-proof">Share a proof</button></div>
     </div>
   `;

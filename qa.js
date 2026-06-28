@@ -49,6 +49,8 @@ const tests = [
   ["Claim restates from accumulated proof", testClaimCompounds],
   ["Declining reflection depth nudges on Today", testTrendNudge],
   ["A verified proof can be shared (text)", testShareProof],
+  ["Extreme Ownership principle names the spine + guardrail", testOwnershipPrinciple],
+  ["Ownership/guardian thread shows on Today", testOwnershipOnToday],
   ["Reflection stepper gates submit to last step", testDebriefStepper],
   ["Reflection stepper chips jump to a step", testDebriefJump],
   ["Re-entry banner after absence", testReentryAfterAbsence],
@@ -634,6 +636,20 @@ async function testTrendNudge() {
   for (let i = 0; i < 5; i++) led.push(proof({ text: "older" + i, quality: 5, source: "reflection" }));
   await loadStateForToday({ tab: "today", proofLedger: led, debriefCount: 10 });
   assertText("slipping");
+}
+
+async function testOwnershipPrinciple() {
+  // The spine is named (Extreme Ownership) AND guardrailed (not self-punishment / outside your control).
+  await loadStateForToday({ tab: "modules", modules: { active: "principles" } });
+  assertText("Extreme Ownership");
+  assertText("self-punishment");
+  assertText("carry the most");
+}
+
+async function testOwnershipOnToday() {
+  // The ownership/guardian thread is woven into the daily spine, not just the modules library.
+  await loadStateForToday({ tab: "today" });
+  assertText("count on");
 }
 
 async function testShareProof() {

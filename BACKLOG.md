@@ -30,6 +30,21 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Named spine: Extreme Ownership + guardian (2026-06-28)
+
+The owner asked about the protective-"alpha" (wolf walks at the back to guard the pack) ethos, then
+reframed it as **Extreme Ownership** — which is already the app's de-facto spine (proof-not-claims,
+own-your-friction, correct-failures, no-blame), just unnamed. Named it explicitly, with the GUARDRAIL
+that resolves the EO-vs-Stoic-dichotomy tension AND the app's own self-punishment safety flag: **own your
+response/part totally — never outcomes or others outside your control; that's not strength, it's
+self-punishment.** Guardian ("the strongest carry the most") is EO's outward face (duty/oikeiosis, not
+dominance). Woven into the spine: new `PRINCIPLES` "ownership" entry, rail kicker "Stoic Extreme
+Ownership" + paragraph, splash line, graduation line, Today "Next Required Action" line, recovery
+principle ("recover so you can be counted on tomorrow"). Copy-only → oracle untouched (12,596/0).
+Approved by 2 opus gates (Stoic fidelity + Spartan/safety: "prose and protective machinery agree").
+qa 95→97. **Do NOT** let EO drift into "own everything incl. externals" — that trips the self-punishment
+guard and breaks the dichotomy.
+
 ## Team Standards CUT (2026-06-27) — it's a personal app
 
 The owner confirmed Spartan X is a **personal** app, so the Team Standards module (a coach/team view of a
