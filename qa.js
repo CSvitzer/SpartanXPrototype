@@ -71,6 +71,13 @@ const tests = [
   ["Corrupt safety flags self-heal to an array", testSafetyFlagsSelfHeal],
   ["Crisis flag does not downgrade earned history", testHistoryPreservedDuringCrisis],
   ["Corrupt main state recovers from last-good backup", testLastGoodRecovery],
+  ["Fresh install shows no recovery banner", testFreshInstallNoBanner],
+  ["RECOVER relabels the CTA to recovery", testRecoverCtaRelabeled],
+  ["Mission timer is live, not frozen", testMissionTimerLive],
+  ["Standard headline matches the ladder", testStandardHeadlineMatchesLadder],
+  ["Clearing a crisis flag needs confirm", testCrisisClearConfirm],
+  ["Prediction vs reality shows on proof-logged", testPredictionShownOnProofLogged],
+  ["Opening a modal moves focus into it", testModalFocusOnOpen],
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
   ["Proof captures friction intensity level", testFrictionLevelCaptured],
   ["Ledger merge is a lossless union by hash", testMergeLedgers],
@@ -322,7 +329,9 @@ async function testSystemExportReset() {
   await clickAction("open-export");
   assertText("Your data stays on this device");
   await clickAction("close-modal");
-  await clickAction("reset");
+  await clickAction("reset"); // opens confirm modal now
+  assertText("Erase everything on this device");
+  await clickAction("confirm-reset");
   await wait(1300);
   assertText("Begin Assessment");
   assert(getState().status === "Visitor", "Expected reset visitor state.");
@@ -1505,6 +1514,59 @@ function waitForFrame() {
   return new Promise(resolve => {
     frame.addEventListener("load", () => resolve(), { once: true });
   });
+}
+
+async function testRecoverCtaRelabeled() {
+  // B1: on RECOVER the Today CTA relabels to recovery (breaks the gold=press association).
+  await loadStateForToday({ tab: "today", recruitQualified: true, readiness: { sleep: 2, energy: 2, soreness: 4, pain: "severe", stress: 4, emotional: 3, motivation: 2 } });
+  assertText("Begin Recovery Practice");
+}
+
+async function testMissionTimerLive() {
+  // B2: an active mission renders the real live timer node (#timerValue), not a frozen string.
+  await loadStateForToday({ tab: "mission", mission: { status: "active", day: 1, name: "M", domain: "body", objective: "x", knownThreat: "Delay", standard: "y", minimum: "z", deadline: "21:30" } });
+  assert(!!doc().querySelector("#timerValue"), "Active mission must render the live timer node.");
+}
+
+async function testStandardHeadlineMatchesLadder() {
+  // B6: the Standard headline is driven by the same source as the progress bar (no contradiction).
+  await loadStateForToday({ tab: "standard", recruitQualified: true, standards: { body: "Baseline", mind: "Baseline", will: "Baseline", execution: "Baseline", readiness: "HOLD", integrity: "Forming" } });
+  assertText("Standard: Baseline");
+}
+
+async function testCrisisClearConfirm() {
+  // B7: setting a crisis flag is one tap; clearing it requires the "I am safe now" confirm.
+  await loadStateForToday({ tab: "system", safetyFlags: ["crisis"] });
+  await clickAction("toggle-safety", { value: "crisis", attr: "data-flag" });
+  assert(getState().modal === "confirmFlagClear", "Clearing crisis must open the confirm modal.");
+  assert(getState().safetyFlags.includes("crisis"), "Crisis must remain until confirmed.");
+  await clickAction("confirm-flag-clear");
+  assert(!getState().safetyFlags.includes("crisis"), "Crisis cleared after explicit confirm.");
+}
+
+async function testModalFocusOnOpen() {
+  // B5: opening a modal moves focus into the dialog (closes the open-side of the focus trap).
+  await loadStateForToday({ tab: "today", modal: "about" });
+  const active = doc().activeElement;
+  assert(!!(active && active.closest && active.closest(".modal-panel")), "Focus must land inside the open modal.");
+}
+
+async function testPredictionShownOnProofLogged() {
+  // B8: the calibration loop closes visibly — call vs reality on the proof-logged screen.
+  await loadStateForToday({ tab: "proof-logged", lastProof: proof({ effect: "Standard held", text: "Did it.", status: "Accepted", prediction: "Clean", predictionHit: true }) });
+  assertText("Your call vs reality");
+  assertText("matched");
+}
+
+async function testFreshInstallNoBanner() {
+  // A genuine first install (empty storage) must NOT show the "Recovered from backup" banner.
+  await loadStateForToday({});            // get a frame loaded first
+  win().localStorage.clear();             // wipe ALL keys → genuine first-run state
+  frame.src = `/index.html?qa=${Date.now()}`;
+  await waitForFrame();
+  await wait(300);
+  assert(!doc().body.innerText.toLowerCase().includes("recovered from backup"), "Fresh install must not show the backup banner.");
+  assert(win().loadState().restoredFromBackup === false, "Fresh load must not be flagged as a restore.");
 }
 
 function doc() {

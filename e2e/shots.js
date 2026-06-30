@@ -76,7 +76,9 @@ const SHOTS = [
     const page = await ctx.newPage();
     await page.goto(BASE, { waitUntil: "load" });
     for (const s of SHOTS) {
-      await page.evaluate(({ k, v }) => { if (v) localStorage.setItem(k, JSON.stringify(v)); else localStorage.removeItem(k); }, { k: KEY, v: s.seed });
+      // Clear ALL keys (main + last-good + quarantine) so no prior shot's snapshot bleeds in, and stamp
+      // stateVersion so a partial onboarding seed isn't read as "incompatible" → recovery banner.
+      await page.evaluate(({ k, v }) => { localStorage.clear(); if (v) localStorage.setItem(k, JSON.stringify({ stateVersion: 1, ...v })); }, { k: KEY, v: s.seed });
       await page.reload({ waitUntil: "load" });
       await page.waitForTimeout(s.wait || 350);
       const file = `${s.name}.${tag}.png`;

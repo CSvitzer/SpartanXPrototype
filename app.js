@@ -407,6 +407,9 @@ let persistFailed = false;
 let lastGoodPayload = null;
 let ledgerTampered = false;
 let pendingImport = null; // parsed, validated backup awaiting the user's confirm to replace state
+let pendingFlagClear = null; // a mental-health flag awaiting the user's "I am safe now" confirm to clear
+let lastRenderedModal = ""; // tracks modal open-transitions so focus moves into a dialog only on open
+const MENTAL_HEALTH_FLAGS = ["crisis", "self-punishment", "restriction"];
 
 function loadState() {
   let raw = null;
@@ -589,7 +592,7 @@ function render() {
   const rail = renderRail();
   const phoneClass = state.onboardingComplete ? "phone wide" : "phone";
   app.innerHTML = `
-    <div class="prototype-shell${state.settings.motionReduced ? " reduced-motion" : ""}">
+    <div class="prototype-shell${state.settings.motionReduced ? " reduced-motion" : ""}"${state.modal ? ' inert aria-hidden="true"' : ""}>
       ${rail}
       <main class="stage">
         <section class="${phoneClass}">
@@ -602,6 +605,13 @@ function render() {
   `;
   bindDynamicInputs();
   restoreFocus(focusKey);
+  // Close the open-side of the modal focus trap: on the open transition, move focus into the dialog
+  // (its first control = the safe-default action) so keyboard/SR users land in it and it's announced.
+  if (state.modal && state.modal !== lastRenderedModal) {
+    const first = app.querySelector(".modal-panel button, .modal-panel a[href], .modal-panel input, .modal-panel textarea, .modal-panel select");
+    if (first) first.focus();
+  }
+  lastRenderedModal = state.modal;
   scheduleSplashTransition();
 }
 
@@ -1226,11 +1236,18 @@ function renderTodayTab() {
           </div>
           <div class="actions">
             ${state.safetyChecked
-              ? (state.recruitQualified
-                  ? (state.mission.status === "active"
-                      ? `<button class="btn primary" data-action="set-tab" data-tab="mission">Open Practice</button>`
-                      : `<button class="btn primary" data-action="continue-standard">Continue Standard</button>`)
-                  : `<button class="btn primary" data-action="begin-main-mission">Begin Practice</button>`)
+              ? (() => {
+                  // On RECOVER, break the learned gold=press association: relabel + restyle the CTA so
+                  // the affordance matches the "intensity disabled" guidance (the assigned practice is
+                  // already recovery-safe). data-action values are unchanged.
+                  const recover = readiness.command === "RECOVER";
+                  const cls = recover ? "btn steel" : "btn primary";
+                  if (state.recruitQualified && state.mission.status === "active")
+                    return `<button class="${cls}" data-action="set-tab" data-tab="mission">${recover ? "Open Recovery Practice" : "Open Practice"}</button>`;
+                  if (state.recruitQualified)
+                    return `<button class="${cls}" data-action="continue-standard">${recover ? "Begin Recovery Practice" : "Continue Standard"}</button>`;
+                  return `<button class="${cls}" data-action="begin-main-mission">${recover ? "Begin Recovery Practice" : "Begin Practice"}</button>`;
+                })()
               : `<span class="muted small">Complete the safety check above to begin your first practice.</span>`}
             <button class="btn steel" data-action="set-tab" data-tab="standard">View Standard</button>
           </div>
@@ -1446,7 +1463,7 @@ function renderMissionTab() {
       ${renderPredictionControl()}
       <div class="timer">
         <div>
-          <strong>${state.mission.status === "active" ? "10:00" : "--:--"}</strong>
+          <strong${state.mission.status === "active" ? ' id="timerValue"' : ""}>${state.mission.status === "active" ? formatTime(getRemainingSeconds()) : "--:--"}</strong>
           <span>${state.mission.status === "active" ? "Practice active" : "Practice assigned"}</span>
         </div>
       </div>
@@ -1655,6 +1672,7 @@ function renderProofLoggedTab() {
         <div class="metric"><span>Friction</span><strong>${escapeHtml(proof.friction)}</strong></div>
         <div class="metric"><span>Decision</span><strong>${escapeHtml(proof.decision)}</strong></div>
         <div class="metric"><span>Domain</span><strong>${escapeHtml(proof.domain)}</strong></div>
+        ${proof.prediction ? `<div class="metric"><span>Your call vs reality</span><strong>${escapeHtml(proof.prediction)} — ${proof.predictionHit ? "matched ✓" : "missed"}</strong></div>` : ""}
       </div>
       <div class="actions">
         ${state.recruitQualified
@@ -1705,7 +1723,7 @@ function renderStandardTab() {
       <div class="view-header">
         <div class="view-title">
           <p class="kicker">Standard Profile</p>
-          <h1>${escapeHtml(standardSummary.title)}.</h1>
+          <h1>${standardSummary.status === "Under Review" ? "Standard under review" : "Standard: " + (STANDARD_LEVELS[standardStageIndex()] || "Untested")}.</h1>
         </div>
         <span class="status-chip ${standardSummary.tone}">${escapeHtml(standardSummary.status)}</span>
       </div>
@@ -1757,6 +1775,7 @@ function renderCloudPanel() {
       <div class="panel">
         <h2>Cloud (beta)</h2>
         <p class="muted small">Cloud sync is <strong>off</strong> — Spartan X is local-only by default. Phase B (verified cross-device sync, leaderboards &amp; challenges) connects here. Your proof ledger merges losslessly across devices and is re-verified server-side. Enable with <code>?backend=&lt;url&gt;</code>.</p>
+        <p class="muted small"><strong>Before you enable it:</strong> turning cloud on uploads your full proof ledger — <strong>including your written reflections</strong> (your negotiations, lessons, and corrections) — to the server. Keep it off to stay 100% on this device.</p>
       </div>`;
   }
   // Protected mode: while a critical safety flag is active, sync stays on (your data) but the
@@ -1775,6 +1794,7 @@ function renderCloudPanel() {
     <div class="panel">
       <h2>Cloud (beta)</h2>
       <p class="muted small">${c.status ? escapeHtml(c.status) : "Verified cross-device sync. Opt-in. Your data stays local-first."}</p>
+      <p class="muted small">Cloud is on: your full proof ledger, <strong>including your written reflections</strong>, syncs to the server. Disconnect to keep everything on this device.</p>
       <div class="actions"><button class="btn steel" data-action="cloud-sync">Sync now</button></div>
       ${c.handle ? `<p class="muted small">Handle: <strong>${escapeHtml(c.handle)}</strong>${c.lastSync ? " · last sync " + escapeHtml(c.lastSync.slice(0, 16).replace("T", " ")) : ""}</p>` : ""}
       ${community}
@@ -2226,6 +2246,38 @@ function renderCognitiveModule() {
   `;
 }
 
+function renderConfirmResetModal() {
+  return `
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+      <div class="modal-panel">
+        <p class="kicker">Delete local data</p>
+        <h2 id="reset-title">Erase everything on this device?</h2>
+        <p class="muted">This permanently deletes all proofs, standards, reflections, and the recovery backup. It cannot be undone, and there is no cloud copy unless you enabled sync.</p>
+        <div class="actions">
+          <button class="btn primary" data-action="close-modal">Keep my data</button>
+          <button class="btn danger" data-action="confirm-reset">Delete everything</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderConfirmFlagClearModal() {
+  return `
+    <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="flagclear-title">
+      <div class="modal-panel">
+        <p class="kicker">Clear a safety flag</p>
+        <h2 id="flagclear-title">Are you safe now?</h2>
+        <p class="muted">Clearing this removes your crisis protections and re-enables comparison features. Only do it if it's genuinely true now. If there's any doubt, keep it on — that's the standard, not a failure.</p>
+        <div class="actions">
+          <button class="btn primary" data-action="close-modal">Keep it on</button>
+          <button class="btn steel" data-action="confirm-flag-clear">I am safe now</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderAboutModal() {
   return `
     <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="about-title">
@@ -2248,6 +2300,8 @@ function renderModal() {
   if (state.modal === "export") return renderExportModal();
   if (state.modal === "report") return renderReportModal();
   if (state.modal === "painDowngrade") return renderPainDowngradeModal();
+  if (state.modal === "confirmReset") return renderConfirmResetModal();
+  if (state.modal === "confirmFlagClear") return renderConfirmFlagClearModal();
   return "";
 }
 
@@ -2638,7 +2692,7 @@ document.addEventListener("click", event => {
   if (action === "begin-selection") state.view = "order-select";
   if (action === "go-access") state.view = "access";
   if (action === "open-about") state.modal = "about";
-  if (action === "close-modal") { state.modal = ""; state.pendingPain = null; clearImport(); }
+  if (action === "close-modal") { state.modal = ""; state.pendingPain = null; pendingFlagClear = null; clearImport(); }
   if (action === "select-order") state.selectedOrder = control.dataset.order;
   if (action === "start-order") startFirstOrder();
   if (action === "complete-first-order") completeFirstOrder("completed");
@@ -2652,7 +2706,22 @@ document.addEventListener("click", event => {
   if (action === "submit-first-report") submitFirstReport();
   if (action === "retry-order") state.view = "order-select";
   if (action === "select-claim") state.claim = control.dataset.claim;
-  if (action === "toggle-safety") toggleArray(state.safetyFlags, control.dataset.flag);
+  if (action === "toggle-safety") {
+    const flag = control.dataset.flag;
+    // Setting a flag is one tap. CLEARING a mental-health flag needs an explicit "I am safe now"
+    // confirm, so a reflex/panic tap can't silently strip crisis protections. Physical flags toggle freely.
+    if (state.safetyFlags.includes(flag) && MENTAL_HEALTH_FLAGS.includes(flag)) {
+      pendingFlagClear = flag;
+      state.modal = "confirmFlagClear";
+    } else {
+      toggleArray(state.safetyFlags, flag);
+    }
+  }
+  if (action === "confirm-flag-clear") {
+    if (pendingFlagClear) toggleArray(state.safetyFlags, pendingFlagClear);
+    pendingFlagClear = null;
+    state.modal = "";
+  }
   if (action === "finish-onboarding") finishOnboarding();
   if (action === "confirm-safety-check") confirmSafetyCheck();
   if (action === "confirm-callsign") state.callsignPromptDismissed = true;
@@ -2719,7 +2788,8 @@ document.addEventListener("click", event => {
   if (action === "dismiss-reentry") state.reentry = false;
   if (action === "dismiss-recovery") state.restoredFromBackup = false;
   if (action === "set-proof-filter") state.proofFilter = control.dataset.filter;
-  if (action === "reset") resetState();
+  if (action === "reset") state.modal = "confirmReset";
+  if (action === "confirm-reset") { state.modal = ""; resetState(); }
 
   render();
 });
@@ -2744,6 +2814,15 @@ function startTimer() {
 function stopTimer() {
   if (tickHandle) window.clearInterval(tickHandle);
   tickHandle = null;
+}
+
+// Mission practice timer: a real 10-minute countdown (reuses the order-execute timer infra) so the
+// brief shows a live clock instead of a frozen "10:00". Session-scoped (resets on reload, restarted
+// on boot if the mission is still active).
+function startMissionTimer() {
+  executionSeconds = 600;
+  executionStartedAt = Date.now();
+  startTimer();
 }
 
 function getRemainingSeconds() {
@@ -3667,6 +3746,7 @@ function beginMission() {
   // Safety check is a one-time gate before the first real practice (deferred from onboarding).
   if (!state.safetyChecked) { state.tab = "today"; return; }
   state.mission.status = "active";
+  startMissionTimer();
   state.tab = "mission";
 }
 
@@ -3681,8 +3761,10 @@ function continueStandard() {
 function completeMission() {
   if (state.mission.status !== "active") {
     state.mission.status = "active";
+    startMissionTimer();
     return;
   }
+  stopTimer();
   state.mission.status = "completed";
   state.mission.result = "Completed";
   state.debrief.result = "Completed";
@@ -4520,4 +4602,5 @@ if (typeof window !== "undefined" && window.top === window.self) {
 }
 
 initSession();
+if (state.onboardingComplete && state.mission && state.mission.status === "active") startMissionTimer();
 render();

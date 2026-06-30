@@ -63,13 +63,13 @@ function checkInvariants(s) {
     let action = "?";
     try {
       action = await h.getAttribute("data-action");
-      if (action === "reset" && rnd() < 0.97) continue; // down-weight destructive reset to keep exploring
+      if (action === "confirm-reset" && rnd() < 0.97) continue; // down-weight the destructive wipe to keep exploring
       await h.click({ timeout: 1500 }); clickedActions.add(action); seq.push(action); await page.waitForTimeout(25);
     } catch { continue; }
 
     const s = await gs();
     const vs = checkInvariants(s);
-    if (action === "reset") { prevQualified = false; } // reset legitimately clears qualification
+    if (action === "confirm-reset") { prevQualified = false; } // reset legitimately clears qualification
     else {
       if (s && s.recruitQualified === true) prevQualified = true;
       if (prevQualified && s && s.recruitQualified === false) vs.push("recruitQualified regressed true->false");

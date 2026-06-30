@@ -30,6 +30,25 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Review remediation shipped (2026-06-30) — 3 opus gates APPROVED
+
+Acted on the **verified-real** findings from the 38-reviewer panel (REVIEW.md / REVIEW_FIX_PLAN.md);
+false positives + by-design (retention/monetization) deliberately excluded. qa 95→104; pipeline 15/15;
+oracle 12,596/0 (all 5 swept fns byte-identical — determinism gate confirmed).
+- ✅ **Harness fix**: shots.js clears storage + stamps `stateVersion` → onboarding shots 01–05 are real
+  (the panel's #1 "fresh-install backup banner P0" was a screenshot artifact, NOT an app bug — verified).
+- ✅ **RECOVER CTA** relabels "Begin Recovery Practice" + steel (breaks gold=press).
+- ✅ **Real mission timer** (live `#timerValue` via existing infra; was a frozen "10:00").
+- ✅ **Cloud consent disclosure** (off+on): explicit that written reflections sync; stay off to keep local.
+- ✅ **Delete-data confirm** modal (was single-tap wipe); safe default primary.
+- ✅ **Crisis-flag clear-confirm**: setting a mental-health flag is one tap; CLEARING needs "I am safe now".
+- ✅ **Modal focus-trap**: `inert` on the shell while a modal is open + focus moves INTO the dialog on open.
+- ✅ **Standard headline** driven by `standardStageIndex()` (same source as the ladder bar — no contradiction).
+- ✅ **Calibration loop closed visibly**: "Your call vs reality — matched/missed" on proof-logged.
+**Verified FALSE / excluded**: fresh-install banner (harness only), "metrics-only" cloud claim (copy is
+honest), "no-reflection-no-standard not enforced" (Incomplete = no elevation), locale-honest emergency
+numbers (already honest), monetization/retention (by-design personal app).
+
 ## Named spine: Extreme Ownership + guardian (2026-06-28)
 
 The owner asked about the protective-"alpha" (wolf walks at the back to guard the pack) ethos, then

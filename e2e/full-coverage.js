@@ -2,7 +2,7 @@ const playwright = require("playwright");
 const ENGINE = process.env.SX_BROWSER || "chromium";
 const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
-const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign graduate-ack debrief-jump set-prediction".split(" ");
+const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign graduate-ack debrief-jump set-prediction confirm-reset confirm-flag-clear".split(" ");
 const clicked = new Set();
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
@@ -261,6 +261,14 @@ const QUALIFIED = {
     await seed(Object.assign({}, QUALIFIED, { tab: "today", lastActiveAt: 1 }));
     await tryca("dismiss-reentry");
     ok("dismiss-reentry", (await gs()).reentry === false);
+    // mental-health flag: set is one tap; CLEAR is gated by the "I am safe now" confirm.
+    await seed(Object.assign({}, QUALIFIED, { tab: "system", safetyFlags: [] }));
+    await ca("toggle-safety", { attr: "data-flag", value: "crisis" });
+    ok("crisis flag set (one tap)", (await gs()).safetyFlags.includes("crisis"));
+    await ca("toggle-safety", { attr: "data-flag", value: "crisis" });
+    ok("clearing crisis opens confirm", (await gs()).modal === "confirmFlagClear");
+    await ca("confirm-flag-clear");
+    ok("crisis cleared after confirm", !(await gs()).safetyFlags.includes("crisis"));
   } catch (e) { ok("S12 safety/reentry", false, e.message); }
 
   // S13b: integrity banner + backup/restore
@@ -306,7 +314,7 @@ const QUALIFIED = {
   try {
     await seed(Object.assign({}, QUALIFIED, { tab: "system" }));
     await ca("open-export"); ok("export modal", (await gs()).modal === "export"); await ca("close-modal");
-    await ca("reset"); await page.waitForTimeout(1400);
+    await ca("reset"); ok("reset opens confirm", (await gs()).modal === "confirmReset"); await ca("confirm-reset"); await page.waitForTimeout(1400);
     ok("reset -> visitor", (await gs()).status === "Visitor");
   } catch (e) { ok("S13 system", false, e.message); }
 
