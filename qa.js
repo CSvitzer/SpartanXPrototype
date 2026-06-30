@@ -78,6 +78,7 @@ const tests = [
   ["Clearing a crisis flag needs confirm", testCrisisClearConfirm],
   ["Prediction vs reality shows on proof-logged", testPredictionShownOnProofLogged],
   ["Opening a modal moves focus into it", testModalFocusOnOpen],
+  ["Support link is dormant by default (no nag)", testSupportDormantByDefault],
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
   ["Proof captures friction intensity level", testFrictionLevelCaptured],
   ["Ledger merge is a lossless union by hash", testMergeLedgers],
@@ -1542,6 +1543,13 @@ async function testCrisisClearConfirm() {
   assert(getState().safetyFlags.includes("crisis"), "Crisis must remain until confirmed.");
   await clickAction("confirm-flag-clear");
   assert(!getState().safetyFlags.includes("crisis"), "Crisis cleared after explicit confirm.");
+}
+
+async function testSupportDormantByDefault() {
+  // On-brand default: with no SUPPORT_URL set, no support link renders — never a nag.
+  await loadStateForToday({ tab: "system" });
+  openDisclosures();
+  assert(!doc().body.innerText.toLowerCase().includes("back the standard"), "Support link must be dormant unless a URL is configured.");
 }
 
 async function testModalFocusOnOpen() {

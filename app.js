@@ -2,6 +2,9 @@ const STORAGE_KEY = "spartan-x-prototype-state";
 const BACKUP_KEY = "spartan-x-prototype-state-backup";
 const LASTGOOD_KEY = "spartan-x-prototype-state-lastgood";
 const STATE_VERSION = 1;
+// Optional, non-coercive support link. Empty = nothing renders (the honest default — no nag, nothing
+// gated). Set to your Ko-fi / GitHub Sponsors / Patreon URL to show a quiet "back the standard" link.
+const SUPPORT_URL = "";
 
 const ORDER_COPY = {
   body: {
@@ -1801,6 +1804,18 @@ function renderCloudPanel() {
     </div>`;
 }
 
+// Quiet, optional support. Renders ONLY if SUPPORT_URL is set — never pushed, nothing gated, the app is
+// identical whether you back it or not. Honesty over pressure.
+function renderSupportPanel() {
+  if (!SUPPORT_URL) return "";
+  return `
+    <div class="panel">
+      <h2>Back the standard</h2>
+      <p class="muted small">Spartan X is free and yours — it stays on this device, no ads, no account, nothing sold. If it holds your standard, you can support it. Entirely optional; nothing changes if you don't.</p>
+      <div class="actions"><a class="btn ghost" href="${escapeAttr(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">Support Spartan X</a></div>
+    </div>`;
+}
+
 function renderSystemTab() {
   return `
     <section class="view">
@@ -1878,6 +1893,7 @@ function renderSystemTab() {
               <button class="btn danger" data-action="reset">Delete Local Data</button>
             </div>
           </div>
+          ${renderSupportPanel()}
         </aside>
       </div>
     </section>

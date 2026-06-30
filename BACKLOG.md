@@ -30,6 +30,17 @@ discarded). **Shipped this round** (all verified, tested, pipeline-green):
 (predictable token is an *intentional* test affordance; weak fnv1a / CORS\* / rate-limit belong to the
 real Phase-B backend, below); caret-loss (text inputs use `saveState`, not `render`).
 
+## Direction decision (2026-06-30): finished honest tool, NOT a growth business
+
+After a full research-backed monetization exploration (SURVIVAL_PRD.md — Obsidian model, coach/B2B as the
+only real $50k engine, distribution as the binding constraint), the owner chose the **"finished honest
+tool / passion"** path: stay free, local, ~$0 cost, NO growth/sales burden, NO monetization machinery.
+Shipped: a single **dormant, optional support link** (`SUPPORT_URL` const, empty by default → renders
+NOTHING; set it to a Ko-fi/GitHub Sponsors/Patreon URL to show a quiet, non-coercive "Back the standard"
+link in System). No ads, no streaks, no gating, no coach tier built. The $50k path (coach-as-customer +
+distribution) is documented in SURVIVAL_PRD/this backlog if the goal ever changes — it requires the
+owner to do sustained B2B/distribution work, which is the real (human) bottleneck, not the product.
+
 ## Review remediation shipped (2026-06-30) — 3 opus gates APPROVED
 
 Acted on the **verified-real** findings from the 38-reviewer panel (REVIEW.md / REVIEW_FIX_PLAN.md);
