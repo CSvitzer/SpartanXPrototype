@@ -2,7 +2,7 @@ const playwright = require("playwright");
 const ENGINE = process.env.SX_BROWSER || "chromium";
 const BASE = process.env.SX_URL || "http://127.0.0.1:4173/";
 const KEY = "spartan-x-prototype-state";
-const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign graduate-ack debrief-jump set-prediction confirm-reset confirm-flag-clear".split(" ");
+const ALL = "advance-foundation analyze-history apply-adjust apply-history-baseline begin-main-mission begin-selection close-modal cognitive-correct cognitive-miss complete-connection complete-first-order complete-mission complete-pressure confirm-pain continue-standard debrief-back debrief-next dismiss-reentry generate-guide go-access grant-integrated-proof load-sample-history minimum-complete open-about open-adjust open-export pause-minimum pause-protect pause-stop practice-principle quit-first-order quit-main-mission report-pain reset retry-order return-execution select-claim select-foundation-day select-order select-principle set-adjust-reason set-friction-level set-guide-focus set-module set-pain set-pause-signal set-pressure-domain set-proof-filter set-quit-signal set-report-status set-tab start-order submit-circle-checkin submit-debrief submit-first-report submit-human-review sync-signals toggle-debrief-friction toggle-report-friction toggle-safety update-benchmark-band dismiss-recovery download-backup confirm-import cancel-import open-report finish-onboarding confirm-safety-check confirm-callsign graduate-ack debrief-jump set-prediction confirm-reset confirm-flag-clear quick-result quick-friction open-full-reflection submit-quick-close confirm-readiness adjust-readiness download-ics backup-nudge-save backup-nudge-dismiss".split(" ");
 const clicked = new Set();
 const R = [];
 const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
@@ -39,10 +39,11 @@ const QUALIFIED = {
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(250);
   };
-  const debriefSeed = (over = {}) => Object.assign({ onboardingComplete: true, recruitQualified: true, safetyChecked: true, tab: "debrief", debriefStep: 0,
+  const debriefSeed = (over = {}) => Object.assign({ onboardingComplete: true, recruitQualified: true, safetyChecked: true, tab: "debrief", debriefMode: "full", debriefStep: 0,
     mission: { status: "completed", day: 1, name: "Obedience", domain: "body", painReported: false },
     debrief: { result: "Completed", friction: ["Delay"], negotiation: "", decision: "Hold", lesson: "", correction: "" } }, over);
   const reflect = async ({ result, keepFields = true, friction = true, crisis = false } = {}) => {
+    await tryca("open-full-reflection"); // quick close is the default screen; the stepper is opt-in
     if (result) await page.selectOption("#result", result).catch(() => {});
     await ca("debrief-next");
     if (!friction) { const b = await page.$('[data-action="toggle-debrief-friction"][data-friction="Delay"][aria-pressed="true"]'); if (b) { await b.click(); clicked.add("toggle-debrief-friction"); await page.waitForTimeout(60); } }
@@ -270,6 +271,44 @@ const QUALIFIED = {
     await ca("confirm-flag-clear");
     ok("crisis cleared after confirm", !(await gs()).safetyFlags.includes("crisis"));
   } catch (e) { ok("S12 safety/reentry", false, e.message); }
+
+  // S12c: gap-close features — quick close, one-tap readiness, backup nudge, calendar reminder
+  try {
+    // quick close (default) with logged number
+    await seed(Object.assign({}, QUALIFIED, { tab: "debrief", mission: { status: "completed", day: 1, name: "Obedience", domain: "body", painReported: false, minimumOnly: false, scaled: false, prediction: "Clean" } }));
+    await ca("quick-result", { attr: "data-result", value: "Clean" });
+    await ca("quick-friction", { attr: "data-friction", value: "Delay" });
+    await page.fill("#quickLogged", "7");
+    await ca("submit-quick-close");
+    let s12c = await gs();
+    ok("quick close logs source=quick q1", s12c.proofLedger[0].source === "quick" && s12c.proofLedger[0].quality === 1);
+    ok("quick close scores the prediction", s12c.proofLedger[0].predictionHit === true);
+    ok("quick close stores logged number", s12c.domainLast && s12c.domainLast.body === 7);
+    ok("quick close never elevates", (s12c.standardProgress.body || { proofCount: 0 }).proofCount === 1); // seed starts at 1 — quick must leave it UNCHANGED
+    // full reflection is opt-in
+    await seed(Object.assign({}, QUALIFIED, { tab: "debrief", mission: { status: "completed", day: 1, name: "Obedience", domain: "body", painReported: false } }));
+    await ca("open-full-reflection");
+    ok("full reflection opt-in shows the stepper", (await gs()).debriefMode === "full");
+    // one-tap readiness
+    await seed(Object.assign({}, QUALIFIED, { tab: "today", readinessHistory: [{ sleep: 3, energy: 3, soreness: 2, pain: "none", stress: 2, emotional: 2, at: "2020-01-01T08:00:00.000Z", day: "2020-01-01" }] }));
+    await ca("confirm-readiness");
+    ok("one-tap readiness snapshots today", ((await gs()).readinessHistory.slice(-1)[0] || {}).day !== "2020-01-01");
+    await seed(Object.assign({}, QUALIFIED, { tab: "today", readinessHistory: [{ sleep: 3, energy: 3, soreness: 2, pain: "none", stress: 2, emotional: 2, at: "2020-01-01T08:00:00.000Z", day: "2020-01-01" }] }));
+    await ca("adjust-readiness");
+    ok("adjust expands the sliders", await page.$('[data-input="readiness"]') !== null);
+    // backup nudge
+    const led = Array.from({ length: 10 }, (_, i) => ({ date: "21 Jun 2026", status: "Accepted", result: "Completed", text: "P" + i, friction: "Delay", decision: "Hold", domain: "body", day: 1, minimumOnly: false, effect: "Standard held", quality: 4, source: "reflection" }));
+    await seed(Object.assign({}, QUALIFIED, { tab: "today", proofLedger: led, lastBackupNudge: 0 }));
+    await ca("backup-nudge-save");
+    ok("backup nudge saves + silences", (await gs()).lastBackupNudge === 10);
+    await seed(Object.assign({}, QUALIFIED, { tab: "today", proofLedger: led, lastBackupNudge: 0 }));
+    await ca("backup-nudge-dismiss");
+    ok("backup nudge dismisses", (await gs()).lastBackupNudge === 10);
+    // calendar reminder
+    await seed(Object.assign({}, QUALIFIED, { tab: "system" }));
+    await ca("download-ics");
+    ok("ics reminder downloadable", true);
+  } catch (e) { ok("S12c gap-close features", false, e.message); }
 
   // S13b: integrity banner + backup/restore
   try {

@@ -79,6 +79,14 @@ const tests = [
   ["Prediction vs reality shows on proof-logged", testPredictionShownOnProofLogged],
   ["Opening a modal moves focus into it", testModalFocusOnOpen],
   ["Support link is dormant by default (no nag)", testSupportDormantByDefault],
+  ["Quick close is the default and logs an honest proof", testQuickCloseDefault],
+  ["Quick closes never advance the standard", testQuickCloseNoElevation],
+  ["One-tap readiness confirms yesterday's check", testOneTapReadiness],
+  ["Logged number becomes the beat-your-last floor", testMeasuredFloor],
+  ["Calendar reminder ICS is well-formed", testIcsReminder],
+  ["Backup nudge appears at 10 proofs and dismisses", testBackupNudge],
+  ["About copy matches what the app actually does", testAboutHonest],
+  ["Quick-close run nudges a full reflection", testReflectionNudgeAfterQuickRun],
   ["Recovery banner shows and dismisses", testRecoveryBannerDismiss],
   ["Proof captures friction intensity level", testFrictionLevelCaptured],
   ["Ledger merge is a lossless union by hash", testMergeLedgers],
@@ -270,6 +278,7 @@ async function testWeakReflection() {
   await setupToToday();
   await clickAction("begin-main-mission");
   await clickAction("complete-mission");
+  await clickAction("open-full-reflection");
   await clickAction("debrief-next");      // Result -> Friction
   await toggleFrictionOff("Delay");       // clear the default-named friction
   for (let i = 0; i < 4; i++) await clickAction("debrief-next"); // -> last step
@@ -283,6 +292,7 @@ async function testRejectedReflection() {
   await setupToToday();
   await clickAction("begin-main-mission");
   await clickAction("complete-mission");
+  await clickAction("open-full-reflection");
   setSelect("result", "Abandoned");          // Step 1: Result
   await clickAction("debrief-next");          // -> Friction
   await clickAction("debrief-next");          // -> Negotiation
@@ -300,6 +310,7 @@ async function testSafetyLanguage() {
   await setupToToday();
   await clickAction("begin-main-mission");
   await clickAction("complete-mission");
+  await clickAction("open-full-reflection");
   await clickAction("debrief-next");          // Result -> Friction
   await clickFriction("Avoidance");
   await clickAction("debrief-next");          // -> Negotiation
@@ -711,6 +722,7 @@ async function testDebriefStepper() {
   await setupToToday();
   await clickAction("begin-main-mission");
   await clickAction("complete-mission");
+  await clickAction("open-full-reflection");
   assertText("Step 1 of 6");
   assert(!doc().querySelector('[data-action="submit-debrief"]'), "Submit must not appear before the last step.");
   for (let i = 0; i < 5; i++) await clickAction("debrief-next");
@@ -720,7 +732,7 @@ async function testDebriefStepper() {
 
 async function testDebriefJump() {
   // #14: stepper chips are tappable to jump/review (any direction), not just Next/Back.
-  await loadStateForToday({ tab: "debrief", mission: { status: "completed" }, debriefStep: 0 });
+  await loadStateForToday({ tab: "debrief", debriefMode: "full", mission: { status: "completed" }, debriefStep: 0 });
   await clickAction("debrief-jump", { value: "4", attr: "data-index" });
   assert(getState().debriefStep === 4, "Tapping a stepper chip must jump to that step.");
   await clickAction("debrief-jump", { value: "1", attr: "data-index" });
@@ -924,7 +936,8 @@ async function testExportStripsToken() {
 async function testNotificationsHonest() {
   // Honesty: the reminder panel must not imply a working push feature that doesn't exist.
   await loadStateForToday({ tab: "system" });
-  assertText("does not send push reminders yet");
+  assertText("sends no push");
+  assert(!!doc().querySelector('[data-action="download-ics"]'), "Calendar reminder button must exist.");
 }
 
 async function testSimulatedModulesLabeled() {
@@ -952,6 +965,7 @@ async function testFrictionLevelCaptured() {
   await setupToToday();
   await clickAction("begin-main-mission");
   await clickAction("complete-mission");
+  await clickAction("open-full-reflection");
   await clickAction("debrief-next");        // result -> friction
   await clickFriction("Delay");
   setSelect("frictionLevel", "high");
@@ -1287,6 +1301,7 @@ async function setupToToday() {
 }
 
 async function submitStrongReflection(note) {
+  await clickAction("open-full-reflection"); // quick close is the default; the stepper is opt-in
   await clickAction("debrief-next"); // Result -> Friction
   await clickFriction("Delay");
   await clickAction("debrief-next"); // Friction -> Negotiation
@@ -1543,6 +1558,93 @@ async function testCrisisClearConfirm() {
   assert(getState().safetyFlags.includes("crisis"), "Crisis must remain until confirmed.");
   await clickAction("confirm-flag-clear");
   assert(!getState().safetyFlags.includes("crisis"), "Crisis cleared after explicit confirm.");
+}
+
+
+async function testQuickCloseDefault() {
+  // Gap A1: closing a practice is ~15 seconds by default; the 6-step is opt-in.
+  await setupToToday();
+  await clickAction("begin-main-mission");
+  await clickAction("complete-mission");
+  assertText("Close it honestly");
+  assert(!doc().querySelector('[data-action="debrief-next"]'), "Stepper must not show by default.");
+  await clickAction("quick-result", { value: "Clean", attr: "data-result" });
+  await clickAction("quick-friction", { value: "Delay", attr: "data-friction" });
+  const el = doc().querySelector("#quickLogged");
+  el.value = "7";
+  el.dispatchEvent(new (win().Event)("input", { bubbles: true }));
+  await wait(40);
+  await clickAction("submit-quick-close");
+  const state = getState();
+  assert(state.lastProof.source === "quick" && state.lastProof.quality === 1, "Quick close logs an honest quality-1 proof.");
+  assert(state.lastProof.logged === 7 && state.domainLast[state.lastProof.domain] === 7, "Logged number stored as the domain's last.");
+  assert(state.tab === "proof-logged", "Quick close lands on proof-logged.");
+  assert(win().verifyLedger(state.proofLedger), "Quick proof must be signed like any other.");
+}
+
+async function testQuickCloseNoElevation() {
+  // Gap A2: the standard moves ONLY through full reflection — quick closes never count.
+  await setupToToday();
+  await clickAction("begin-main-mission");
+  await clickAction("complete-mission");
+  await clickAction("quick-result", { value: "Clean", attr: "data-result" });
+  await clickAction("submit-quick-close");
+  const state = getState();
+  const progress = state.standardProgress[state.lastProof.domain];
+  assert(!progress || progress.proofCount === 0, "Quick closes must not count toward elevation.");
+}
+
+async function testOneTapReadiness() {
+  // Gap A3: with a prior day's check, today is one tap; sliders only on Adjust.
+  await loadStateForToday({ readinessHistory: [{ sleep: 3, energy: 3, soreness: 2, pain: "none", stress: 2, emotional: 2, at: "2020-01-01T08:00:00.000Z", day: "2020-01-01" }] });
+  assertText("Same as yesterday");
+  assert(!doc().querySelector('[data-input="readiness"]'), "Sliders stay collapsed until Adjust.");
+  await clickAction("confirm-readiness");
+  const last = getState().readinessHistory.slice(-1)[0];
+  assert(last.day === new Date().toISOString().slice(0, 10), "Confirm records today's snapshot.");
+}
+
+async function testMeasuredFloor() {
+  // Gap B1 (the trainer's fix): a logged number makes the floor literal — beat your last.
+  await loadStateForToday({
+    foundation: { currentDay: 7, completedDays: [1, 2, 3, 4, 5, 6, 7], started: true },
+    standards: { body: "Tested", mind: "Elevated", will: "Elevated", execution: "Elevated", readiness: "HOLD", integrity: "Forming" },
+    domainLast: { body: 7 },
+  });
+  const a = win().choosePracticeAssignment({ day: 8, deadline: "21:30" });
+  assert(a.domain === "body" && a.minimum.includes("Beat your last logged: 7"), "Floor must be the user's own number: " + a.minimum);
+}
+
+async function testIcsReminder() {
+  // Gap C1: honest serverless reminder — a daily calendar event at the window start.
+  await loadStateForToday({});
+  const ics = win().buildReminderIcs();
+  assert(ics.includes("RRULE:FREQ=DAILY") && ics.includes("T180000") && ics.includes("BEGIN:VALARM"), "ICS must be a daily event with an alarm at 18:00.");
+}
+
+async function testBackupNudge() {
+  // Gap D1: at 10 proofs the archive asks (once) to be saved.
+  const led = [];
+  for (let i = 0; i < 10; i++) led.push(proof({ text: "P" + i }));
+  await loadStateForToday({ tab: "today", proofLedger: led, lastBackupNudge: 0 });
+  assertText("proofs in your archive");
+  await clickAction("backup-nudge-dismiss");
+  assert(getState().lastBackupNudge === 10, "Dismiss silences the milestone.");
+  assert(!doc().body.innerText.includes("proofs in your archive"), "Nudge gone after dismiss.");
+}
+
+async function testAboutHonest() {
+  // Gap B2: the About copy may not claim more than the code does.
+  await loadStateForToday({ tab: "today", modal: "about" });
+  const text = doc().body.innerText;
+  assert(!/capability forge/i.test(text), "No forge overclaim.");
+  assert(/prescribes no exercises/i.test(text), "About must state the honest scope.");
+}
+
+async function testReflectionNudgeAfterQuickRun() {
+  // Gap A4: a run of quick closes earns one quiet full-reflection nudge.
+  await loadStateForToday({ tab: "today", proofLedger: [proof({ source: "quick" }), proof({ source: "quick" }), proof({ source: "quick" })] });
+  assertText("only moves through full reflection");
 }
 
 async function testSupportDormantByDefault() {

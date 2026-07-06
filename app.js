@@ -370,6 +370,12 @@ const DEFAULT_STATE = {
     lesson: "",
     correction: "",
   },
+  // Quick close (default close path): ~15s honest log. Full reflection is optional per practice and
+  // is the ONLY path that moves the standard (enforced in updateStandardsFromProof).
+  debriefMode: "quick",
+  quick: { result: "", friction: "", note: "", logged: "" },
+  domainLast: {}, // last self-logged number per domain ("beat your last" floor) — non-hashed
+  lastBackupNudge: 0,
   proofLedger: [],
   standards: {
     body: "Untested",
@@ -412,6 +418,7 @@ let ledgerTampered = false;
 let pendingImport = null; // parsed, validated backup awaiting the user's confirm to replace state
 let pendingFlagClear = null; // a mental-health flag awaiting the user's "I am safe now" confirm to clear
 let lastRenderedModal = ""; // tracks modal open-transitions so focus moves into a dialog only on open
+let readinessExpanded = false; // session-only: user chose "Adjust" over one-tap readiness confirm
 const MENTAL_HEALTH_FLAGS = ["crisis", "self-punishment", "restriction"];
 
 function loadState() {
@@ -1177,6 +1184,36 @@ function trendNudge() {
   return "";
 }
 
+// Gap fix A4: full reflection is prompted when it MATTERS (a run of quick closes, a miss, or pain) —
+// one quiet line, never a guilt loop, never repeated per state.
+function reflectionNudge() {
+  const ledger = Array.isArray(state.proofLedger) ? state.proofLedger : [];
+  if (!ledger.length) return "";
+  const recent = ledger.slice(0, 5);
+  const noRecentReflection = recent.length >= 3 && recent.every(e => e && e.source !== "reflection");
+  const lastWasMiss = recent[0] && (recent[0].result === "Failed" || recent[0].result === "Abandoned");
+  if (!noRecentReflection && !lastWasMiss) return "";
+  return `<div class="panel"><p class="muted small">${lastWasMiss
+    ? "That miss is worth a full reflection — that's where the standard moves."
+    : "Several quick closes in a row. The standard only moves through full reflection — give the next one the six steps."}</p></div>`;
+}
+
+// Gap fix D1: the archive promise can't rest on luck. Every 10th proof, one quiet line + one-tap
+// backup. Never nags twice for the same milestone; dismiss also silences it.
+function renderBackupNudge() {
+  const count = Array.isArray(state.proofLedger) ? state.proofLedger.length : 0;
+  const lastNudge = Number(state.lastBackupNudge) || 0;
+  if (count < 10 || count < lastNudge + 10) return "";
+  return `
+    <div class="panel">
+      <p class="muted small">${count} proofs in your archive — it lives only in this browser. Save a backup.</p>
+      <div class="actions">
+        <button class="btn steel" data-action="backup-nudge-save">Download backup</button>
+        <button class="btn ghost" data-action="backup-nudge-dismiss">Later</button>
+      </div>
+    </div>`;
+}
+
 function renderTodayProgress() {
   const domain = weakestDomain();
   const tiers = computeQualification();
@@ -1236,6 +1273,7 @@ function renderTodayTab() {
             <span class="label">Readiness Guidance</span>
             <strong>${readiness.command}</strong>
             <p>${escapeHtml(readiness.reason)}</p>
+            <p class="muted small">Computed from your own check-in — it reads you, not sensors.</p>
           </div>
           <div class="actions">
             ${state.safetyChecked
@@ -1259,8 +1297,10 @@ function renderTodayTab() {
             <p>${readiness.command === "RECOVER" ? "Recovery is the standard now — complete a recovery-safe practice. Obeying it is discipline, not retreat. Physical intensity is disabled." : "Start practice before 18:00. Minimum practice remains available."}</p>
             <p class="muted small">Own your part today — that's what makes you someone others can count on.</p>
           </div>
+          ${state.safetyChecked ? reflectionNudge() : ""}
           ${state.safetyChecked ? trendNudge() : ""}
           ${state.safetyChecked ? renderTodayProgress() : ""}
+          ${renderBackupNudge()}
           ${disclosure("Foundation Path", renderFoundationProgressPanel())}
         </div>
         <aside class="stack">
@@ -1275,6 +1315,23 @@ function renderTodayTab() {
 
 function renderReadinessControls() {
   const r = state.readiness;
+  // One-tap readiness (gap fix): once a prior day's check exists, today is a single confirm — the
+  // sliders only expand on "Adjust". computeReadiness is untouched; this is pure presentation.
+  const today = new Date().toISOString().slice(0, 10);
+  const last = Array.isArray(state.readinessHistory) ? state.readinessHistory[state.readinessHistory.length - 1] : null;
+  const doneToday = !!(last && last.day === today);
+  if (last && !doneToday && !readinessExpanded) {
+    return `
+      <div class="panel">
+        <h2>Readiness Check</h2>
+        <p class="muted small">Yesterday's check-in gives <strong>${computeReadiness(r).command}</strong> today. Still true?</p>
+        <div class="actions">
+          <button class="btn steel" data-action="confirm-readiness">Same as yesterday</button>
+          <button class="btn ghost" data-action="adjust-readiness">Adjust</button>
+        </div>
+      </div>
+    `;
+  }
   return `
     <div class="panel">
       <h2>Readiness Check</h2>
@@ -1482,16 +1539,17 @@ function renderMissionTab() {
 
 function renderDebriefTab() {
   const needsDebrief = ["completed", "scaled", "failed", "pain"].includes(state.mission.status);
+  const full = state.debriefMode === "full";
   return `
     <section class="view">
       <div class="view-header">
         <div class="view-title">
-          <p class="kicker">${needsDebrief ? "Reflection Required" : "Reflection"}</p>
-          <h1>${needsDebrief ? "No reflection. No standard." : "Practice not closed."}</h1>
+          <p class="kicker">${needsDebrief ? (full ? "Full Reflection" : "Close The Practice") : "Reflection"}</p>
+          <h1>${needsDebrief ? (full ? "No reflection. No standard." : "Close it honestly.") : "Practice not closed."}</h1>
         </div>
-        <span class="status-chip ${needsDebrief ? "amber" : "steel"}">${needsDebrief ? "Reflection Required" : "Waiting"}</span>
+        <span class="status-chip ${needsDebrief ? (full ? "amber" : "bronze") : "steel"}">${needsDebrief ? (full ? "Reflecting" : "Quick close") : "Waiting"}</span>
       </div>
-      ${needsDebrief ? renderDebriefForm() : `
+      ${needsDebrief ? (full ? renderDebriefForm() : renderQuickClose()) : `
         <div class="empty-state">
           <p>Begin a practice, then close it through reflection.</p>
         </div>
@@ -1500,6 +1558,43 @@ function renderDebriefTab() {
         </div>
       `}
     </section>
+  `;
+}
+
+// Quick close — the default, ~15-second honest close (gap fix: the ceremony must never outweigh the
+// action). Result + one friction tap + optional note/number. The standard still moves ONLY through
+// full reflection; this keeps the chain alive without a daily 6-step toll.
+function renderQuickClose() {
+  const q = state.quick;
+  const frictions = ["Delay", "Avoidance", "Fatigue", "Boredom", "Negotiation", "Fear"];
+  return `
+    <div class="panel">
+      <p class="kicker">Result</p>
+      <div class="call-options">
+        ${["Clean", "Scaled", "Miss"].map(r => `<button data-action="quick-result" data-result="${r}" aria-pressed="${q.result === r}">${r}</button>`).join("")}
+      </div>
+    </div>
+    <div class="panel">
+      <p class="kicker">Friction (one tap)</p>
+      <div class="tag-grid">
+        ${frictions.map(f => `<button data-action="quick-friction" data-friction="${f}" aria-pressed="${q.friction === f}">${f}</button>`).join("")}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="field">
+        <label for="quickLogged">What did you do? (optional — minutes or reps, your number is your word)</label>
+        <input id="quickLogged" type="number" min="0" max="10000" inputmode="numeric" data-input="quick" data-key="logged" value="${escapeAttr(String(q.logged || ""))}">
+      </div>
+      <div class="field">
+        <label for="quickNote">One line (optional)</label>
+        <input id="quickNote" maxlength="200" data-input="quick" data-key="note" value="${escapeAttr(q.note)}" placeholder="What actually happened?">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" data-action="submit-quick-close" ${q.result ? "" : "disabled"}>Close practice</button>
+      <button class="btn ghost" data-action="open-full-reflection">Full reflection instead</button>
+    </div>
+    <p class="muted small">Quick close keeps the record honest. The standard only moves through full reflection — do one when it matters.</p>
   `;
 }
 
@@ -1863,7 +1958,8 @@ function renderSystemTab() {
               <label for="reminderWindow">Your intended window</label>
               <input id="reminderWindow" data-input="settings" data-key="reminderWindow" value="${escapeAttr(state.settings.reminderWindow)}">
             </div>
-            <p class="muted small">This records the window you hold yourself to. Spartan X does not send push reminders yet — automatic notifications arrive with the Phase-B backend.</p>
+            <p class="muted small">This records the window you hold yourself to. Spartan X sends no push — put the window in your own calendar instead: your OS reminds you, and nothing leaves this device.</p>
+            <div class="actions"><button class="btn ghost" data-action="download-ics">Add to my calendar</button></div>
           </div>
           <div class="panel">
             <h2>Safety Notes</h2>
@@ -2299,8 +2395,8 @@ function renderAboutModal() {
     <div class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="about-title">
       <div class="modal-panel">
         <p class="kicker">What is Spartan X?</p>
-        <h2 id="about-title">A human capability forge.</h2>
-        <p class="muted">It trains body, mind, will, attention, and execution through practice, friction, reflection, and proof. It is not a game. It is not therapy. It is not for comfort.</p>
+        <h2 id="about-title">A discipline system.</h2>
+        <p class="muted">You choose the work. Spartan X holds the standard: practice, friction, reflection, proof. It prescribes no exercises and measures only what you log yourself — it is not a coach, not a game, not therapy, and not for comfort.</p>
         <div class="actions">
           <button class="btn primary" data-action="close-modal">Close</button>
         </div>
@@ -2448,6 +2544,40 @@ function exportPayload() {
   const safe = JSON.parse(JSON.stringify(state));
   if (safe.cloud) safe.cloud.token = "";
   return JSON.stringify(safe, null, 2);
+}
+
+// Gap fix C1: honest, serverless reminders. Spartan X sends no push — instead the user puts the
+// practice window in their OWN calendar (recurring daily event + alarm). The OS reminds; we see nothing.
+function buildReminderIcs() {
+  const start = (String(state.settings.reminderWindow || "18:00").split("-")[0] || "18:00").trim();
+  const [h, m] = start.split(":").map(s => String(s).padStart(2, "0"));
+  const hh = /^\d{2}$/.test(h) ? h : "18";
+  const mm = /^\d{2}$/.test(m) ? m : "00";
+  const now = new Date();
+  const d = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Spartan X//Reminder//EN",
+    "BEGIN:VEVENT",
+    `UID:spartanx-standard-${d}@local`,
+    `DTSTART:${d}T${hh}${mm}00`,
+    "RRULE:FREQ=DAILY",
+    "SUMMARY:Spartan X — the standard waits.",
+    "DESCRIPTION:Open the practice window. Own your part today.",
+    "BEGIN:VALARM", "TRIGGER:PT0M", "ACTION:DISPLAY", "DESCRIPTION:Spartan X — the standard waits.", "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR",
+  ].join("\r\n");
+}
+
+function downloadReminderIcs() {
+  try {
+    const blob = new Blob([buildReminderIcs()], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "spartan-x-standard.ics";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch (error) { /* download blocked: nothing to clean up, user can retry */ }
 }
 
 // Download the current state as a timestamped JSON backup the user controls (local-only data export).
@@ -2637,6 +2767,13 @@ function bindDynamicInputs() {
     });
   });
 
+  document.querySelectorAll("[data-input='quick']").forEach(input => {
+    input.addEventListener("input", event => {
+      state.quick[event.target.dataset.key] = event.target.value;
+      saveState();
+    });
+  });
+
   document.querySelectorAll("[data-input='import-file']").forEach(input => {
     input.addEventListener("change", event => {
       const file = event.target.files && event.target.files[0];
@@ -2772,6 +2909,15 @@ document.addEventListener("click", event => {
   if (action === "complete-mission") completeMission();
   if (action === "set-prediction" && state.mission.status !== "active") state.mission.prediction = control.dataset.call;
   if (action === "share-proof") { shareProof(); return; }
+  if (action === "quick-result") state.quick.result = control.dataset.result;
+  if (action === "confirm-readiness") { recordReadinessSnapshot(); readinessExpanded = false; }
+  if (action === "adjust-readiness") readinessExpanded = true;
+  if (action === "download-ics") { downloadReminderIcs(); return; }
+  if (action === "backup-nudge-save") { downloadBackup(); state.lastBackupNudge = state.proofLedger.length; }
+  if (action === "backup-nudge-dismiss") state.lastBackupNudge = state.proofLedger.length;
+  if (action === "quick-friction") state.quick.friction = state.quick.friction === control.dataset.friction ? "" : control.dataset.friction;
+  if (action === "open-full-reflection") state.debriefMode = "full";
+  if (action === "submit-quick-close") submitQuickClose();
   if (action === "open-adjust") state.modal = "adjust";
   if (action === "set-adjust-reason") state.adjustReason = control.dataset.reason;
   if (action === "apply-adjust") applyAdjustPractice();
@@ -2910,6 +3056,8 @@ function setPracticeForDay(dayNumber) {
     minimumOnly: false,
     prediction: null,
   };
+  state.debriefMode = "quick";
+  state.quick = { result: "", friction: "", note: "", logged: "" };
   state.engine.assignmentReason = assignment.reason;
   state.engine.targetedPractice = assignment.targeted ? assignment.name : null;
 }
@@ -3650,15 +3798,18 @@ function choosePracticeAssignment(day) {
     const domain = weakestDomain();
     const o = overloadFor(domain);
     const level = state.standards[domain];
+    // Gap fix B1 (the trainer's fix): if the user logs a real number, the floor becomes THEIR number.
+    // "Beat your last" is literal overload on a measured thing — self-reported, and said to be.
+    const best = state.domainLast && Number(state.domainLast[domain]) > 0 ? Number(state.domainLast[domain]) : null;
     return {
       ...day,
       name: "Continued Standard",
       domain,
       objective: `Train your weakest domain (${domain}) — now at ${level}. ${o.tag}.`,
       knownThreat: "Avoiding the weak domain",
-      standard: o.standard,
-      minimum: o.minimum,
-      reason: `Foundation complete. ${domain} is at ${level} — the floor rises with the level, not just the label.`,
+      standard: best ? "Beat your last — your number, your word." : o.standard,
+      minimum: best ? `Beat your last logged: ${best} (minutes or reps — whatever you logged).` : o.minimum,
+      reason: `Foundation complete. ${domain} is at ${level} — the floor rises with ${best ? "your own logged number" : "the level"}, not just the label.`,
       targeted: true,
     };
   }
@@ -3784,6 +3935,7 @@ function completeMission() {
   state.mission.status = "completed";
   state.mission.result = "Completed";
   state.debrief.result = "Completed";
+  state.debriefMode = "quick"; // every fresh close starts at the 15-second path; depth is a choice
   state.tab = "debrief";
 }
 
@@ -3870,6 +4022,57 @@ function reportPain() {
   state.tab = "debrief";
 }
 
+// Quick close: the honest 15-second close. Same safety spine as the full debrief (pain override,
+// crisis flag override, free-text scan on the note), quality fixed at 1 and source "quick" so it can
+// NEVER count toward elevation — the standard moves only through full reflection.
+function submitQuickClose() {
+  const q = state.quick;
+  if (!q.result) return;
+  applySafetyLanguageScan(q.note);
+  recordReadinessSnapshot();
+  const result = { Clean: "Completed", Scaled: "Scaled", Miss: "Failed" }[q.result] || "Completed";
+  const minimumOnly = Boolean(state.mission.minimumOnly) || q.result === "Scaled";
+  const decision = q.result === "Scaled" ? "Scale" : "Hold";
+  const unsafe = state.mission.painReported && !["Recover", "Scale"].includes(decision);
+  let status = q.result === "Miss" ? "Incomplete" : "Accepted";
+  if (unsafe || hasCriticalSafetyFlag()) status = "Under Review";
+  const quality = 1;
+  const entry = {
+    date: new Date().toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
+    status,
+    result,
+    text: `${result} ${state.mission.name} — quick close.${q.note.trim() ? " " + q.note.trim() : ""}`,
+    friction: q.friction || "Unspecified",
+    frictionLevel: "medium",
+    decision,
+    domain: state.mission.domain || "execution",
+    day: state.mission.day,
+    minimumOnly,
+    effect: standardEffect(status, quality, minimumOnly),
+    quality,
+    source: "quick",
+  };
+  const prediction = state.mission.prediction || null;
+  entry.prediction = prediction;
+  entry.predictionHit = prediction ? prediction === outcomeBucket(result, minimumOnly) : null;
+  const logged = Number(q.logged);
+  if (Number.isFinite(logged) && logged > 0) {
+    entry.logged = logged; // non-hashed: your own number, your word
+    if (!state.domainLast || typeof state.domainLast !== "object") state.domainLast = {};
+    state.domainLast[entry.domain] = logged;
+  }
+  state.mission.status = "closed";
+  state.mission.result = "";
+  state.mission.painReported = false;
+  state.mission.scaled = false;
+  state.mission.minimumOnly = false;
+  state.mission.prediction = null;
+  state.quick = { result: "", friction: "", note: "", logged: "" };
+  state.debriefMode = "quick";
+  applyProof(entry);
+  state.tab = "proof-logged";
+}
+
 function submitDebrief() {
   applySafetyLanguageScan();
   recordReadinessSnapshot();
@@ -3925,6 +4128,7 @@ function submitDebrief() {
     correction: "",
   };
   state.debriefStep = 0;
+  state.debriefMode = "quick";
 
   applyProof(entry);
   state.tab = "proof-logged";
@@ -4058,12 +4262,13 @@ function addFrictionFromReason(reason) {
   if (!state.debrief.friction.includes(friction)) state.debrief.friction.push(friction);
 }
 
-function applySafetyLanguageScan() {
+function applySafetyLanguageScan(extraText = "") {
   const text = [
     state.debrief.negotiation,
     state.debrief.lesson,
     state.debrief.correction,
     state.settings.injuryNotes,
+    extraText,
   ].join(" ").toLowerCase();
 
   // Free-text backstop for the explicit Safety Gate. Word-boundary patterns
@@ -4389,7 +4594,9 @@ function nextStandardLevel(level) {
 // PRD 5.9 Moving Standard. Only reflected proof moves a trainable domain; module activity does not.
 function updateStandardsFromProof(entry) {
   const domain = entry.domain || ORDER_COPY[state.selectedOrder]?.domain || "body";
-  const reflected = entry.source !== "module";
+  // Gap-close A2: the standard moves ONLY through full reflection. Quick closes (source "quick") and
+  // module grants (source "module") keep the record but never advance or count toward elevation.
+  const reflected = entry.source === "reflection";
 
   if (reflected && TRAINABLE_DOMAINS.includes(domain)) {
     const progress = state.standardProgress[domain] || (state.standardProgress[domain] = { proofCount: 0, fails: 0 });

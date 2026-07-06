@@ -23,6 +23,7 @@ const ok = (n, c, d) => R.push({ n, c: !!c, d: d || "" });
   const advanceDay = async () => { await page.clock.fastForward("24:00:00"); await page.reload({ waitUntil: "load" }); await page.waitForTimeout(150); };
 
   const reflect = async ({ noMood = false, recover = false } = {}) => {
+    await ca("open-full-reflection"); // quick close is the default; progression uses full reflections
     await ca("debrief-next"); // result -> friction
     const want = noMood ? "Fatigue" : "Delay"; // Fatigue/Boredom = a "no-mood" practice
     const pressed = await page.$(`[data-action="toggle-debrief-friction"][data-friction="${want}"][aria-pressed="true"]`);

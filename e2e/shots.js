@@ -42,6 +42,7 @@ const SHOTS = [
   // ── Practice / Reflection ──
   { name: "20-mission", seed: merge(Q, { tab: "mission", mission: { status: "assigned", day: 1, name: "Obedience", domain: "body", objective: "Complete one 10-minute movement practice before 18:00.", knownThreat: "Avoidance", standard: "Start before comfort.", minimum: "2 minutes controlled movement.", deadline: "21:30" } }) },
   { name: "21-debrief", seed: merge(Q, { tab: "debrief", mission: { status: "completed", day: 1, name: "Obedience", domain: "body" } }) },
+  { name: "22-debrief-full", seed: merge(Q, { tab: "debrief", debriefMode: "full", mission: { status: "completed", day: 1, name: "Obedience", domain: "body" } }) },
   // ── Proof / Standard ──
   { name: "30-proof-ledger", seed: merge(Q, { tab: "proof" }) },
   { name: "31-standard", seed: merge(Q, { tab: "standard" }) },

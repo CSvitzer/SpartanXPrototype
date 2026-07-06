@@ -29,6 +29,7 @@ function ok(n, c, d) { R.push({ n, c: !!c, d: d || "" }); }
   };
   const gs = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem("spartan-x-prototype-state")); } catch { return null; } });
   const submitReflection = async (crisisText) => {
+    await ca("open-full-reflection"); // quick close is the default; deep test exercises the full path
     await ca("debrief-next");
     await ca("debrief-next");
     await fill("#negotiation", crisisText || "Delay appeared and I negotiated the start.");
